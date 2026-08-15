@@ -128,6 +128,8 @@ packages/
 
 The "Core API — Modular Monolith" from `docs/ARCHITECTURE.md` §3/§5, built on NestJS/TypeScript, with its internal module boundaries mirroring `docs/DATABASE_DESIGN.md` §2–§10 exactly.
 
+> **Amendment (2026-08-15, approved):** each domain module below is internally structured as **Clean Architecture layers** (`domain/` → `application/` → `infrastructure/`/`interface/`, dependencies pointing inward only), superseding the flatter `controllers/services/entities/dto` layout originally written here. This is a refinement of *how a module is organized internally* — it does **not** change the module boundaries themselves (still one module per `docs/DATABASE_DESIGN.md` domain), the modular-monolith-vs-microservices decision, the `main.ts`/`worker.ts` split, or any other architectural decision in `docs/ARCHITECTURE.md`. Recorded here explicitly per the standing rule that architecture is never changed without approval.
+
 ```
 apps/
 └── api/
@@ -137,19 +139,29 @@ apps/
     │   ├── app.module.ts            # root module, imports every domain module
     │   ├── modules/
     │   │   ├── identity/             # users, roles, all practitioner profiles, credential documents, admin profiles
-    │   │   │   ├── controllers/       # HTTP route handlers — thin, delegate to services
-    │   │   │   ├── services/           # business logic (e.g., live verification_status check, ARCHITECTURE §6.3)
-    │   │   │   ├── entities/            # ORM entities/models mirroring DATABASE_DESIGN §2's tables
-    │   │   │   ├── dto/                  # request/response shape validation, matching API_DESIGN §3
-    │   │   │   └── identity.module.ts
-    │   │   ├── facilities/                # facilities, staff, equipment, services, slots — DATABASE_DESIGN §3
-    │   │   ├── bookings/                   # referrals, bookings, status history — DATABASE_DESIGN §4
-    │   │   ├── imaging/                      # studies, reports, addenda — DATABASE_DESIGN §5
-    │   │   ├── matching/                       # match requests/offers — DATABASE_DESIGN §6
-    │   │   ├── payments/                         # payments, events, refunds, payouts, commission ledger — §7
-    │   │   ├── trust/                              # ratings, disputes, dispute events — §8
-    │   │   ├── compliance/                           # consent records, audit logs — §9
-    │   │   └── notifications/                          # device tokens, notification dispatch — §10
+    │   │   │   ├── domain/             # LAYER 1 (innermost, no dependencies on anything below):
+    │   │   │   │                         entities (plain TS classes — no ORM/NestJS decorators), value objects,
+    │   │   │   │                         domain errors, and repository INTERFACES (ports) — e.g. UserRepository
+    │   │   │   ├── application/          # LAYER 2 (depends only on domain/): use cases — one class per business
+    │   │   │   │                           operation (e.g. RequestOtpUseCase, VerifyOtpUseCase), plus outbound
+    │   │   │   │                           port interfaces the use case needs (e.g. SmsGatewayPort) — no NestJS,
+    │   │   │   │                           no Prisma, no HTTP types anywhere in this layer
+    │   │   │   ├── infrastructure/         # LAYER 3 (depends on domain/ + application/, implements their ports):
+    │   │   │   │                             Prisma repository implementations, concrete adapters (SMS gateway
+    │   │   │   │                             client, object-storage client) — the ONLY layer allowed to import Prisma
+    │   │   │   ├── interface/                # LAYER 4 (depends on application/): NestJS controllers (thin — parse
+    │   │   │   │                               request, call a use case, map result to response), request/response
+    │   │   │   │                               DTOs matching API_DESIGN §3, NestJS-specific wiring
+    │   │   │   └── identity.module.ts          # NestJS DI wiring: binds each domain/application port interface
+    │   │   │                                     to its infrastructure/ implementation
+    │   │   ├── facilities/                # same four-layer structure — facilities, staff, equipment, services, slots
+    │   │   ├── bookings/                   # same four-layer structure — referrals, bookings, status history
+    │   │   ├── imaging/                      # same four-layer structure — studies, reports, addenda
+    │   │   ├── matching/                       # same four-layer structure — match requests/offers
+    │   │   ├── payments/                         # same four-layer structure — payments, payouts, commission ledger
+    │   │   ├── trust/                              # same four-layer structure — ratings, disputes
+    │   │   ├── compliance/                           # same four-layer structure — consent records, audit logs
+    │   │   └── notifications/                          # same four-layer structure — device tokens, dispatch
     │   ├── common/
     │   │   ├── guards/                 # JWT auth guard, RBAC role guard, live-verification-status guard
     │   │   ├── interceptors/            # audit-log-writing interceptor (attached to every clinical-data read)
@@ -161,7 +173,9 @@ apps/
 
 **Why `main.ts` and `worker.ts` as two entrypoints into the same `modules/` tree, rather than a separate `apps/worker`:** `docs/ARCHITECTURE.md` §5.4 describes background job processing (the SLA-breach scanner, payout batching, credential-expiry checks, notification retries — `docs/DATABASE_DESIGN.md`-backed jobs) as part of the same modular monolith, sharing the same Redis infrastructure and the same business logic (a payout batch job needs the exact same payment-domain service code an HTTP request would use). Splitting it into a genuinely separate `apps/worker` would either duplicate that service code or force an awkward internal-package extraction with no real benefit yet. Two bootstrap files sharing one `modules/` tree gets the real operational win — **the API and the worker can still be deployed and scaled as two separate Docker images/processes** (§9) — without splitting code that has no reason to be split. This is the same "boundaries in code before boundaries in infrastructure" principle `docs/ARCHITECTURE.md` §1 states for the monolith-vs-microservices decision, applied one level down.
 
-**Why each domain module has its own `controllers/services/entities/dto` rather than one flat `src/controllers`, `src/services` etc. across the whole app:** grouping by domain (not by technical layer) is what makes "extract Imaging & Reporting into its own service later" (the specific candidate `docs/ARCHITECTURE.md` §16 names) a matter of moving one folder, not hunting across the codebase for every file that happens to touch studies/reports.
+**Why each domain module has its own four-layer structure rather than one flat `src/controllers`, `src/services` etc. across the whole app:** grouping by domain (not by technical layer, at the top level) is what makes "extract Imaging & Reporting into its own service later" (the specific candidate `docs/ARCHITECTURE.md` §16 names) a matter of moving one folder, not hunting across the codebase for every file that happens to touch studies/reports — that reasoning is unchanged from the original version of this document.
+
+**Why Clean Architecture layers *within* each module (the amendment):** the dependency rule — `interface/` and `infrastructure/` depend inward on `application/` and `domain/`, never the reverse — buys three concrete things this project needs given its stated trajectory toward millions of users and its regulated-data stakes: (1) **testability without a database** — a use case like `SubmitReportUseCase` (§9's immutability logic) can be unit-tested against an in-memory fake implementing the `ReportRepository` port, with no Postgres, no NestJS test module, no network — fast enough to run on every keystroke; (2) **the domain rules that matter most are framework-independent** — the report-immutability rule, the slot-capacity invariant, the booking-status state machine live in `domain/`/`application/` as plain TypeScript, so a future decision to change ORM, split a module into its own service (§16), or even swap NestJS itself touches `infrastructure/`/`interface/` only, never the business rules; (3) **it forces the Dependency Inversion half of SOLID at a structural level** — a use case depends on a `PaymentGatewayPort` interface it owns, not on the Paystack SDK directly, so swapping or mocking the payment provider never touches business logic. The cost — more files per module, an extra mapping step between domain entities and Prisma models — is accepted deliberately for the modules where it matters most (`bookings`, `imaging`, `matching`, `payments`) and applied uniformly to every module for consistency, per the "no special-cased module" principle already established in `docs/ARCHITECTURE.md` §1.
 
 ---
 
