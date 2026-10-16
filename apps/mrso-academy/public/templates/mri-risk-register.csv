@@ -1,0 +1,4 @@
+Risk ID,Date raised,Hazard,Risk description,Existing controls,Likelihood (1-5),Consequence (1-5),Risk score,Additional controls planned,Owner,Target date,Residual likelihood,Residual consequence,Residual score,Review date,Status
+R001,,Ferromagnetic projectile,Unscreened equipment enters Zone IV,Locked Zone III; signage; staff training,,,,,,,,,,,Open
+R002,,RF burn,Patient positioning / cable loops,Positioning pads; checklist,,,,,,,,,,,Open
+R003,,Helium release,Quench pipe failure during quench,Annual inspection; O2 monitor,,,,,,,,,,,Open
