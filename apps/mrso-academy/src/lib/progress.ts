@@ -5,11 +5,9 @@ import { useSyncExternalStore } from "react";
 /**
  * Local demonstration progress store.
  *
- * LIMITATION: progress is stored in this browser's localStorage only. It is not
- * tied to an account, does not sync across devices, is lost if site data is
- * cleared, and can be edited by the user — so it cannot evidence completion to
- * anyone else. A production deployment should replace this module with an
- * authenticated API backed by a database (see README).
+ * Progress always lives in this browser's localStorage. When Supabase accounts
+ * are configured and the learner is signed in, lib/auth.tsx additionally syncs
+ * the same document to the `progress` table (see supabase/schema.sql).
  */
 
 const STORAGE_KEY = "mrso-academy:progress:v1";
@@ -200,6 +198,69 @@ export const progress = {
   exportJson(): string {
     load();
     return JSON.stringify(state, null, 2);
+  },
+};
+
+/** Fill in missing fields so documents from older versions or the server are safe to use. */
+export function normalizeState(raw: unknown): ProgressState {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Partial<ProgressState>;
+  return { ...empty, ...r, version: 1 };
+}
+
+export function isEmptyState(s: ProgressState) {
+  return (
+    Object.keys(s.completedLessons).length === 0 &&
+    s.exams.length === 0 &&
+    Object.keys(s.labResults).length === 0 &&
+    Object.keys(s.lessonQuiz).length === 0 &&
+    s.bookmarks.length === 0
+  );
+}
+
+const latest = <T extends { date: string }>(a?: T, b?: T) => (!a ? b : !b ? a : a.date >= b.date ? a : b);
+function mergeByDate<T extends { date: string }>(a: Record<string, T>, b: Record<string, T>) {
+  const out: Record<string, T> = { ...a };
+  for (const [k, v] of Object.entries(b)) out[k] = latest(out[k], v)!;
+  return out;
+}
+
+/** Combine two progress documents without losing work from either (e.g. guest work + account). */
+export function mergeStates(a: ProgressState, b: ProgressState): ProgressState {
+  const exams = [...a.exams, ...b.exams.filter((e) => !a.exams.some((x) => x.id === e.id))].sort((x, y) => (x.date < y.date ? 1 : -1));
+  const activity = [...a.activity, ...b.activity]
+    .filter((x, i, arr) => arr.findIndex((y) => y.date === x.date && y.label === x.label) === i)
+    .sort((x, y) => (x.date < y.date ? 1 : -1))
+    .slice(0, 25);
+  const earliest = (x: Record<string, string>, y: Record<string, string>) => {
+    const o = { ...x };
+    for (const [k, v] of Object.entries(y)) o[k] = o[k] && o[k] < v ? o[k] : v;
+    return o;
+  };
+  return {
+    version: 1,
+    completedLessons: earliest(a.completedLessons, b.completedLessons),
+    caseViewed: earliest(a.caseViewed, b.caseViewed),
+    lessonQuiz: mergeByDate(a.lessonQuiz, b.lessonQuiz),
+    labResults: mergeByDate(a.labResults, b.labResults),
+    exams: exams.slice(0, 50),
+    bookmarks: Array.from(new Set([...a.bookmarks, ...b.bookmarks])),
+    flashcards: { ...b.flashcards, ...a.flashcards },
+    learningSeconds: Math.max(a.learningSeconds, b.learningSeconds),
+    activity,
+    learnerName: a.learnerName || b.learnerName,
+  };
+}
+
+/** Low-level access used by the account sync layer. */
+export const progressStore = {
+  get: getSnapshot,
+  replace(next: ProgressState) {
+    update(() => normalizeState(next));
+  },
+  subscribe(listener: () => void) {
+    load();
+    listeners.add(listener);
+    return () => listeners.delete(listener);
   },
 };
 

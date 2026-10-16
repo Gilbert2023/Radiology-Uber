@@ -11,6 +11,7 @@
     "validate-content": "tsx scripts/validate-content.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
     "lucide-react": "^0.544.0",
     "next": "^15.5.28",
     "react": "^19.1.1",

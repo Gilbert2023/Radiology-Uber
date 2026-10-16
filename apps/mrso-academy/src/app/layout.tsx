@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: { default: "Advanced MRI Safety Officer Academy", template: "%s · MRSO Academy" },
@@ -15,10 +16,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-GB">
       <body className="min-h-screen font-sans">
-        <a href="#main" className="skip-link">Skip to main content</a>
-        <SiteHeader />
-        <main id="main">{children}</main>
-        <SiteFooter />
+        <AuthProvider>
+          <a href="#main" className="skip-link">Skip to main content</a>
+          <SiteHeader />
+          <main id="main">{children}</main>
+          <SiteFooter />
+        </AuthProvider>
       </body>
     </html>
   );

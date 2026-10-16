@@ -9,11 +9,13 @@ import { computeStats } from "@/lib/stats";
 import { downloadText, formatDate, formatDuration, pct } from "@/lib/utils";
 import { Badge, Button, Callout, Card, EmptyState, LinkButton, ProgressBar } from "@/components/ui";
 import { BarList, Ring, ScoreHistory } from "@/components/charts";
+import { useAuth } from "@/lib/auth";
 
 export function Dashboard() {
   const p = useProgress();
   const st = computeStats(p);
   const [confirmReset, setConfirmReset] = useState(false);
+  const auth = useAuth();
 
   const stat = (icon: React.ReactNode, label: string, value: string, sub?: string) => (
     <Card className="flex items-center gap-4">
@@ -28,10 +30,26 @@ export function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <Callout tone="info" title="Local demonstration mode">
-        Progress is saved in this browser only (localStorage). It is not linked to an account, does not sync between devices and is lost if you clear site
-        data. {isStorageAvailable() ? "" : "Browser storage appears unavailable, so progress will not persist after this session."}
-      </Callout>
+      {auth.session ? (
+        <Callout tone={auth.sync === "error" || auth.sync === "disabled" ? "warning" : "info"} title={`Signed in as ${auth.profile?.full_name || auth.session.user.email}`}>
+          {auth.sync === "disabled"
+            ? "This account has been disabled by an administrator, so progress is not being saved."
+            : auth.sync === "error"
+              ? "Progress could not be saved to your account just now. It is kept in this browser and will retry on your next change."
+              : "Your progress is saved to your account and available on any device you sign in on."}
+        </Callout>
+      ) : auth.enabled ? (
+        <Callout tone="info" title="You are learning as a guest">
+          Progress is saved in this browser only.{" "}
+          <Link href="/login/" className="font-semibold text-cyan-300 underline-offset-2 hover:underline">Create a free account</Link> to keep it safe and use it on
+          any device — your guest progress will be added to your account.
+        </Callout>
+      ) : (
+        <Callout tone="info" title="Local demonstration mode">
+          Progress is saved in this browser only (localStorage). It is not linked to an account, does not sync between devices and is lost if you clear site
+          data. {isStorageAvailable() ? "" : "Browser storage appears unavailable, so progress will not persist after this session."}
+        </Callout>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stat(<BookOpen className="h-5 w-5" />, "Lessons", `${st.lessonsDone}/${st.lessonsTotal}`, `${st.lessonPct}% complete`)}
@@ -193,7 +211,7 @@ export function Dashboard() {
         </Button>
         {confirmReset ? (
           <>
-            <Button variant="danger" onClick={() => { progress.reset(); setConfirmReset(false); }}>Confirm: erase all progress</Button>
+            <Button variant="danger" onClick={() => { progress.reset(); setConfirmReset(false); }}>{auth.session ? "Confirm: erase all progress (also from your account)" : "Confirm: erase all progress"}</Button>
             <Button variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button>
           </>
         ) : (

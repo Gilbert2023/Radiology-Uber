@@ -33,8 +33,8 @@ export default function AboutPage() {
         <Card>
           <h2 className="font-semibold text-white">Demonstration limitations</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-300">
-            <li>No user accounts or server database: progress is stored in this browser&apos;s localStorage only.</li>
-            <li>Progress does not sync across devices and can be cleared or edited by the user.</li>
+            <li>Free learner accounts (when enabled) save progress to the cloud; guests&apos; progress stays in their browser only.</li>
+            <li>Quizzes are scored in the learner&apos;s browser and are not invigilated, so results are not suitable as proof of competence.</li>
             <li>Completion records cannot be verified by third parties.</li>
             <li>No instructor dashboard, cohort reporting or LMS (SCORM/xAPI) integration yet.</li>
             <li>Imagery is original illustration; licensed photography can be configured (see README).</li>
