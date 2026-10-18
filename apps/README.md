@@ -12,6 +12,7 @@ Planned contents (scaffolded incrementally, one per milestone in `docs/MILESTONE
 | `radiologist-portal` | Next.js | Radiologist case viewing and reporting (Part C, desktop) | M128 |
 | `provider-dashboard` | Next.js | Imaging center and hospital staff (Parts D and E, one role-aware codebase) | M133 |
 | `admin-panel` | Next.js | Internal Ops/Finance/Support staff (Part F) | M139 |
+| `mrso-academy` | Next.js (static export) | Advanced MRI Safety Officer Academy — standalone MR safety education platform; see its README | Built |
 
 **Why these boundaries and not others** (e.g., why `provider-dashboard` serves two personas, why `practitioner-app` serves two roles, why the API's worker is a second entrypoint rather than a separate app) is explained in full in `docs/FOLDER_STRUCTURE.md` §2–§4.
 
