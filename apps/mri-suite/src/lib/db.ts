@@ -48,3 +48,15 @@ export async function tx<T>(fn: (db: PoolClient) => Promise<T>): Promise<T> {
     client.release();
   }
 }
+
+/**
+ * Transaction that tags the database session with the acting user, so database triggers
+ * (e.g. the appointment audit trail) record who made each change automatically.
+ */
+export async function txAs<T>(actor: { userId: string; fullName?: string; username?: string; roleName?: string }, fn: (db: PoolClient) => Promise<T>): Promise<T> {
+  return tx(async (db) => {
+    await db.query(`SELECT set_config('app.user_id', $1, true), set_config('app.user_name', $2, true), set_config('app.user_role', $3, true), set_config('app.source', 'MRI Suite application', true)`,
+      [actor.userId, actor.fullName ?? actor.username ?? "", actor.roleName ?? ""]);
+    return fn(db);
+  });
+}

@@ -92,13 +92,13 @@ export default async function Pacs({ searchParams }: { searchParams: Promise<Rec
         {exceptions.length === 0 ? <div className="p-4"><EmptyState title="No outstanding PACS exceptions" icon={CheckCircle2} /></div> : <table className="table">{head(true)}<tbody>{exceptions.map((r) => <Row key={r.id} r={r} compact />)}</tbody></table>}
       </Card>
       <div className="mb-4 grid gap-4 xl:grid-cols-2">
-        <Card title="Upload trend (daily)"><Bars data={k.daily} x="bucket" stacked series={[{ key: "success", label: "Uploaded", color: "#179f8b" }, { key: "pending", label: "Pending", color: "#f59e0b" }, { key: "failed", label: "Failed / investigation", color: "#ef4444" }]} /></Card>
+        <Card title="Upload trend (daily)"><Bars data={k.daily} x="bucket" stacked series={[{ key: "success", label: "Uploaded", color: "#16a34a" }, { key: "pending", label: "Pending", color: "#f59e0b" }, { key: "failed", label: "Failed / investigation", color: "#ef4444" }]} /></Card>
         <Card title="Performance by radiographer" subtitle="Counts reflect scans performed; not a ranking" bodyClass="p-0">
           <table className="table"><thead><tr><th>Radiographer</th><th>Total</th><th>Uploaded</th><th>Failed</th><th>Pending</th><th>Success rate</th><th>Avg time</th></tr></thead>
             <tbody>{k.byRadiographer.map((r: any) => <tr key={r.radiographer}><td>{r.radiographer}</td><td className="tabular-nums">{r.total}</td><td className="tabular-nums">{r.success}</td><td className="tabular-nums">{r.failed}</td><td className="tabular-nums">{r.pending}</td><td><Pct v={r.total ? (r.success / r.total) * 100 : null} /></td><td>{fmtMinutes(r.avg_minutes)}</td></tr>)}</tbody></table>
         </Card>
-        <Card title="Weekly trend"><Bars data={k.weekly} x="bucket" stacked height={200} series={[{ key: "success", label: "Uploaded", color: "#179f8b" }, { key: "pending", label: "Pending", color: "#f59e0b" }, { key: "failed", label: "Failed", color: "#ef4444" }]} /></Card>
-        <Card title="Monthly trend"><Bars data={k.monthly} x="bucket" stacked height={200} series={[{ key: "success", label: "Uploaded", color: "#179f8b" }, { key: "pending", label: "Pending", color: "#f59e0b" }, { key: "failed", label: "Failed", color: "#ef4444" }]} /></Card>
+        <Card title="Weekly trend"><Bars data={k.weekly} x="bucket" stacked height={200} series={[{ key: "success", label: "Uploaded", color: "#16a34a" }, { key: "pending", label: "Pending", color: "#f59e0b" }, { key: "failed", label: "Failed", color: "#ef4444" }]} /></Card>
+        <Card title="Monthly trend"><Bars data={k.monthly} x="bucket" stacked height={200} series={[{ key: "success", label: "Uploaded", color: "#16a34a" }, { key: "pending", label: "Pending", color: "#f59e0b" }, { key: "failed", label: "Failed", color: "#ef4444" }]} /></Card>
       </div>
       <Card title={`Upload records (${rows.length})`} bodyClass="p-0 overflow-x-auto">
         {rows.length === 0 ? <div className="p-4"><EmptyState title="No records for this filter" /></div> : <table className="table">{head()}<tbody>{rows.map((r) => <Row key={r.id} r={r} />)}</tbody></table>}

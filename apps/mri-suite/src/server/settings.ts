@@ -1,6 +1,7 @@
 import { q, one, type Db } from "@/lib/db";
 
-export interface OperatingDay { open: string; close: string }
+export interface OperatingDay { open: string; close: string } // close "24:00" = open until midnight
+export const is24h = (h: OperatingDay | null | undefined) => !!h && h.open === "00:00" && h.close === "24:00";
 export interface DeptSettings {
   operatingHours: Record<string, OperatingDay | null>; // keys "0".."6" (0 = Sunday)
   waitAlertMinutes: number;
@@ -16,12 +17,7 @@ export interface DeptSettings {
 }
 
 export const DEFAULT_SETTINGS: DeptSettings = {
-  operatingHours: {
-    "0": null,
-    "1": { open: "07:30", close: "19:30" }, "2": { open: "07:30", close: "19:30" }, "3": { open: "07:30", close: "19:30" },
-    "4": { open: "07:30", close: "19:30" }, "5": { open: "07:30", close: "19:30" },
-    "6": { open: "08:00", close: "14:00" },
-  },
+  operatingHours: Object.fromEntries(["0", "1", "2", "3", "4", "5", "6"].map((d) => [d, { open: "00:00", close: "24:00" }])), // 24/7 MRI unit
   waitAlertMinutes: 45,
   waitingStatusMinutes: 15,
   lateGraceMinutes: 15,

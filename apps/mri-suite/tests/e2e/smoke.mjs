@@ -50,6 +50,8 @@ for (const [u, path] of Object.entries(landing)) {
   check(page.url().includes("/access-denied"), "receptionist cannot open MRI safety screening");
   await page.goto(`${BASE}/executive`);
   check(page.url().includes("/access-denied"), "receptionist cannot open executive dashboard");
+  await page.goto(`${BASE}/appointments/audit`);
+  check(page.url().includes("/access-denied"), "receptionist cannot open the appointment audit trail");
   const nav = await page.$$eval("nav[aria-label='Main navigation'] a", (a) => a.map((x) => x.textContent));
   check(!nav.some((t) => /Executive|Audit|Roles/.test(t)), "receptionist navigation hides unauthorised modules");
   await ctx.close();
@@ -93,6 +95,12 @@ for (const [u, path] of Object.entries(landing)) {
 // 4. Exports and sign-out
 {
   const { ctx, page } = await login("supervisor");
+  await page.goto(`${BASE}/appointments/audit`);
+  const auditText = await page.textContent("body");
+  check(/Appointment Audit Trail/.test(auditText) && /Status: /.test(auditText), "supervisor sees the appointment audit trail with field-level changes");
+  check((await page.$$("img[alt='The Bank Hospital']")).length > 0, "official hospital logo is displayed");
+  const ax = await page.request.get(`${BASE}/api/export/appointment_audit?format=xlsx`);
+  check(ax.status() === 200 && (await ax.body()).subarray(0, 2).toString() === "PK", "appointment audit trail Excel export");
   const pdf = await page.request.get(`${BASE}/api/export/monthly?format=pdf`);
   const body = await pdf.body();
   check(pdf.status() === 200 && pdf.headers()["content-type"] === "application/pdf" && body.subarray(0, 5).toString() === "%PDF-", `monthly PDF export (${body.length} bytes)`);

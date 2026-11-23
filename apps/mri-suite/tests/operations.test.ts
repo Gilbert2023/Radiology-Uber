@@ -229,10 +229,10 @@ describe("Analytics match the underlying records", () => {
     const u = await utilisation(p);
     const s = u.scanners.find((x) => x.scanner.startsWith("MRI 1"))!;
     assert.ok(Math.abs(s.utilisationPct! - (s.scanningHours / s.availableHours) * 100) < 1e-9);
-    // Available hours: Mon–Fri 12h, Sat 6h by default
-    let expected = 0;
-    for (let d = p.from; d < p.to; d = addDays(d, 1)) { const wd = new Date(d + "T12:00:00Z").getUTCDay(); expected += wd === 0 ? 0 : wd === 6 ? 6 : 12; }
-    assert.equal(s.availableHours, expected);
+    // 24/7 unit: 24 available hours every day
+    let days = 0;
+    for (let d = p.from; d < p.to; d = addDays(d, 1)) days++;
+    assert.equal(s.availableHours, days * 24);
   });
   test("screening compliance is 100% for system-recorded scans", async () => {
     const qs = await qualitySafety(p);

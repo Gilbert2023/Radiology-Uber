@@ -27,9 +27,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </div>
         {/* Decorative MRI bore rings */}
         <svg aria-hidden className="absolute -right-24 top-16 h-[520px] w-[520px] opacity-20" viewBox="0 0 200 200">
-          <circle cx="100" cy="100" r="95" fill="none" stroke="#66d7c1" strokeWidth="1" />
+          <circle cx="100" cy="100" r="95" fill="none" stroke="#fda900" strokeWidth="1" />
           <circle cx="100" cy="100" r="70" fill="none" stroke="#fff" strokeWidth="10" />
-          <circle cx="100" cy="100" r="44" fill="none" stroke="#66d7c1" strokeWidth="2" />
+          <circle cx="100" cy="100" r="44" fill="none" stroke="#fda900" strokeWidth="2" />
           <rect x="20" y="140" width="160" height="10" rx="5" fill="#fff" opacity=".5" />
         </svg>
       </section>

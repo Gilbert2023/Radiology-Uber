@@ -9,6 +9,7 @@ Status key: ✅ implemented and tested · 🟡 implemented, needs departmental i
 - ✅ Database schema + migrations + reference/demo seed
 - ✅ Appointment scheduling – day (by scanner / by radiographer), week, month, click-to-book, conflicts, reschedule, cancel, no-show, reminder call log
 - ✅ Patient registration with duplicate detection; patient history
+- ✅ Automatic appointment audit trail (database trigger, field-level before/after, append-only, viewer + export)
 - ✅ Worklist, arrival & tracking, waiting time
 - ✅ MRI safety screening with enforced clearance rules
 - ✅ Patient preparation with protocol-driven checklists
@@ -40,11 +41,11 @@ Status key: ✅ implemented and tested · 🟡 implemented, needs departmental i
 - ⬜ Patient and referring-doctor portals
 
 ## Outstanding items & decisions needed from the department
-1. **Official logo file** and brand colour specification (placeholder in use).
-2. Scanner serial number, installation date, service contract details.
+1. ✅ Official logo installed; theme derived from the logo colours.
+2. Scanner confirmed as GE SIGNA Creator 1.5T – serial number, installation date and service contract details still to be entered.
 3. Approval of preparation protocols, screening questionnaire wording and pregnancy age range (10–55 used).
 4. Real protocol parameters and QC thresholds with source documents.
-5. Operating hours (default Mon–Fri 07:30–19:30, Sat 08:00–14:00, Sun closed) and alert thresholds.
+5. ✅ 24/7 operation configured (every day 00:00–24:00). Alert thresholds still to be confirmed.
 6. Hosting decision and data-protection registration (see DEPLOYMENT.md).
 7. Optional: two-factor authentication, automated accessibility audit, load testing.
 

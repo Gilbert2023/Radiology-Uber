@@ -34,6 +34,13 @@ PACS (sky), Completed (dark green), Incomplete (rose), Cancelled (grey), No-show
 - **Implant Registry** – verification worklist, escalations, conditional/unsafe/unknown lists; record verifications (checklist + document source/title/revision/reference) and upload implant cards or manufacturer documents (PDF/PNG/JPEG).
 - **Implant database** – reference entries are *user-entered* until you mark them *manufacturer-verified* against cited documentation; edits create new versions.
 
+## Appointment audit trail (Supervisor, System Administrator)
+Nothing needs to be done to record it – every booking, edit, reschedule, reminder, arrival, status
+change and cancellation is saved automatically with the user, role, time and exact before/after
+values. See it at the bottom of any appointment page, or under **Patient Management → Appointment
+Audit Trail** to search by date, user or accession/MRN and export to Excel or PDF. Entries cannot
+be edited or deleted; changes made outside the system appear as *Unattributed*.
+
 ## MRI Supervisor
 Everything above plus: Executive Dashboard, analytics, reports, QC and cleaning verification,
 return-to-service authorisation, protocol and preparation-protocol approval, leave approval,

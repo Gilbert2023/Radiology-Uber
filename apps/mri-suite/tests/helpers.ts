@@ -38,7 +38,7 @@ export async function newPatient(sex = "MALE", dob = "1980-05-05") {
 /** Next operating weekday at least `minDays` ahead. */
 export function nextOperatingDay(minDays = 2) {
   let d = addDays(localDate(), minDays);
-  while (!DEFAULT_SETTINGS.operatingHours[String(weekday(d))] || weekday(d) === 6) d = addDays(d, 1);
+  while (!DEFAULT_SETTINGS.operatingHours[String(weekday(d))]) d = addDays(d, 1);
   return d;
 }
 /** A time today a few minutes ago, for arrival-eligible appointments (emergency bypasses operating hours). */

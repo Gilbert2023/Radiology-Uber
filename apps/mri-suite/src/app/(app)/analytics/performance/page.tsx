@@ -24,7 +24,7 @@ export default async function Performance({ searchParams }: { searchParams: Prom
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card title="Daily volume"><Lines area data={v.byDay} x="day" series={[{ key: "n", label: "Examinations" }, { key: "contrast", label: "Contrast" }]} /></Card>
-        <Card title="Weekly volume"><Bars data={wk} x="bucket" series={[{ key: "n", label: "Examinations", color: "#179f8b" }]} /></Card>
+        <Card title="Weekly volume"><Bars data={wk} x="bucket" series={[{ key: "n", label: "Examinations", color: "#16a34a" }]} /></Card>
         <Card title="By body region"><Donut data={v.byRegion.map((r: any) => ({ name: BODY_REGIONS[r.key] ?? r.key, value: r.n }))} height={280} /></Card>
         <Card title="By examination type"><Bars data={v.byExam.slice(0, 12)} x="key" horizontal series={[{ key: "n", label: "Examinations" }]} height={320} /></Card>
         <Card title="By referring department"><Bars data={v.byDept} x="key" horizontal series={[{ key: "n", label: "Examinations", color: "#0ea5e9" }]} height={320} /></Card>

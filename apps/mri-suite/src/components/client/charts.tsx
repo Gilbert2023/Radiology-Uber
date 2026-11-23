@@ -1,7 +1,7 @@
 "use client";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
 
-export const PALETTE = ["#1f3f7a", "#179f8b", "#f59e0b", "#8b5cf6", "#ef4444", "#0ea5e9", "#64748b", "#10b981", "#ec4899", "#84cc16"];
+export const PALETTE = ["#2c3135", "#16a34a", "#f59e0b", "#8b5cf6", "#ef4444", "#0ea5e9", "#64748b", "#10b981", "#ec4899", "#84cc16"];
 const axis = { fontSize: 11, fill: "#64748b" };
 const fmtLabel = (v: any) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(v + "T12:00:00Z").toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : v);
 

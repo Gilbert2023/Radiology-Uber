@@ -2,7 +2,7 @@
 // Documentation and decision-support only – never infers MRI safety from material,
 // category or previous assessments. Clearance is made per examination by authorised staff.
 import { z } from "zod";
-import { q, one, tx } from "@/lib/db";
+import { q, one, txAs } from "@/lib/db";
 import { IMPLANT_MATERIALS, CONDITION_FIELDS, VERIFICATION_CHECKLIST } from "@/lib/constants";
 import { type Actor, assertCan, can } from "../actor";
 import { audit } from "../audit";
@@ -47,7 +47,7 @@ export async function createImplant(actor: Actor, input: ImplantInput) {
   assertCan(actor, "implants.manage");
   const d = parse(implantSchema, input);
   validateMaterials(d.materials);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const p = await one(`SELECT id FROM patients WHERE id=$1`, [d.patientId], db);
     if (!p) throw new NotFoundError("Patient");
     let infoSource = "USER_ENTERED_UNVERIFIED";
@@ -90,7 +90,7 @@ export async function updateImplant(actor: Actor, id: string, input: ImplantInpu
   const d = parse(implantSchema, input);
   validateMaterials(d.materials);
   const isPresent = !(input.isPresent === "false" || input.isPresent === false);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const cur = await one(`SELECT * FROM patient_implants WHERE id=$1 FOR UPDATE`, [id], db);
     if (!cur) throw new NotFoundError("Implant");
     const conditions = cleanConditions(d.conditions);
@@ -139,7 +139,7 @@ export async function recordVerification(actor: Actor, implantId: string, input:
     if (!d.docSource || !d.docTitle || !d.docReference) throw new DomainError("Record the documentation source, title and reference used for verification.");
   }
   if (["ESCALATED", "UNSUCCESSFUL"].includes(d.status) && !d.notes) throw new DomainError("Record the reason for escalation / unsuccessful verification.");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const imp = await one(`SELECT * FROM patient_implants WHERE id=$1 FOR UPDATE`, [implantId], db);
     if (!imp) throw new NotFoundError("Implant");
     if (d.status === "VERIFIED" && imp.safety_class === "UNKNOWN")
@@ -175,7 +175,7 @@ export async function saveDeviceReference(actor: Actor, id: string | null, input
   validateMaterials(d.materials);
   const conditions = cleanConditions(d.conditions);
   if (d.safetyClass === "MR_CONDITIONAL" && !Object.keys(conditions).length) throw new DomainError("MR Conditional entries must include the labelled conditions.");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     let row;
     if (id) {
       const cur = await one(`SELECT * FROM device_references WHERE id=$1 FOR UPDATE`, [id], db);
@@ -202,7 +202,7 @@ export async function saveDeviceReference(actor: Actor, id: string | null, input
 
 export async function verifyDeviceReference(actor: Actor, id: string) {
   assertCan(actor, "devices.verify");
-  await tx(async (db) => {
+  await txAs(actor, async (db) => {
     const cur = await one(`SELECT * FROM device_references WHERE id=$1 FOR UPDATE`, [id], db);
     if (!cur) throw new NotFoundError("Device reference");
     if (!cur.source_title || !cur.source_reference) throw new DomainError("A manufacturer source document (title and reference) is required before marking as manufacturer-verified.");

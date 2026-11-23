@@ -1,21 +1,21 @@
 import type { Config } from "tailwindcss";
 
-// Brand tokens. Navy/teal foundation pending the official Bank Hospital logo colour
-// specification — update `brand` and `accent` once the approved logo file is supplied.
+// Brand tokens derived from the official Bank Hospital logo: charcoal, amber, red (red reserved for alerts/H mark).
 export default {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: "#eef3fb", 100: "#d9e3f4", 200: "#b3c6e8", 300: "#7f9fd4", 400: "#4d74b8",
-          500: "#2c5497", 600: "#1f3f7a", 700: "#183262", 800: "#12264b", 900: "#0c1a35", 950: "#08122a",
+        brand: { // charcoal – lettering of the official Bank Hospital logo (#2C3135)
+          50: "#f4f5f6", 100: "#e6e8ea", 200: "#ccd0d4", 300: "#a6adb3", 400: "#78828a",
+          500: "#59636b", 600: "#454d54", 700: "#363c42", 800: "#2c3135", 900: "#1f2326", 950: "#131619",
         },
-        accent: {
-          50: "#ecfbf8", 100: "#cff5ec", 200: "#a0ead9", 300: "#66d7c1", 400: "#33bca5",
-          500: "#179f8b", 600: "#0f8072", 700: "#10665c", 800: "#11514a", 900: "#12433e",
+        accent: { // amber – ring of the official logo (#FDA900)
+          50: "#fff9eb", 100: "#ffefc6", 200: "#ffdd88", 300: "#ffc94a", 400: "#feb820",
+          500: "#fda900", 600: "#df8500", 700: "#b05a02", 800: "#8c4508", 900: "#733a0b",
         },
-        canvas: "#f4f7fb",
+        logored: "#ed0000",
+        canvas: "#f7f6f2",
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],

@@ -37,10 +37,10 @@ export default async function Executive({ searchParams }: { searchParams: Promis
         <StatCard label="Per operating day" value={util.scanners[0]?.examsPerOperatingDay?.toFixed(1) ?? "—"} icon={Activity} tone="accent" />
       </div>
       <div className="mb-4 grid gap-4 xl:grid-cols-3">
-        <Card title="Daily examination volume" className="xl:col-span-2"><Bars data={vol.byDay.map((d: any) => ({ ...d, nc: d.n - d.contrast }))} x="day" stacked series={[{ key: "nc", label: "Non-contrast", color: "#1f3f7a" }, { key: "contrast", label: "Contrast", color: "#8b5cf6" }]} height={240} /></Card>
+        <Card title="Daily examination volume" className="xl:col-span-2"><Bars data={vol.byDay.map((d: any) => ({ ...d, nc: d.n - d.contrast }))} x="day" stacked series={[{ key: "nc", label: "Non-contrast", color: "#2c3135" }, { key: "contrast", label: "Contrast", color: "#8b5cf6" }]} height={240} /></Card>
         <Card title="By body region"><Donut data={vol.byRegion.map((r: any) => ({ name: BODY_REGIONS[r.key] ?? r.key, value: r.n }))} height={240} /></Card>
         <Card title="Weekly volume (12 weeks)"><Bars data={weekly} x="bucket" series={[{ key: "n", label: "Examinations" }]} height={200} /></Card>
-        <Card title="Monthly volume (12 months)"><Bars data={monthly} x="bucket" series={[{ key: "n", label: "Examinations", color: "#179f8b" }]} height={200} /></Card>
+        <Card title="Monthly volume (12 months)"><Bars data={monthly} x="bucket" series={[{ key: "n", label: "Examinations", color: "#16a34a" }]} height={200} /></Card>
         <Card title="Annual volume"><Bars data={annual.map((a: any) => ({ ...a, bucket: a.bucket.slice(0, 4) }))} x="bucket" series={[{ key: "n", label: "Examinations", color: "#0ea5e9" }]} height={200} /></Card>
         <Card title="By referring department" className="xl:col-span-2"><Bars data={vol.byDept.slice(0, 10)} x="key" horizontal series={[{ key: "n", label: "Examinations" }]} height={260} /></Card>
         <Card title="Completed vs incomplete"><Donut data={[{ name: "Completed", value: t.completed }, { name: "Awaiting PACS", value: t.awaiting_pacs }, { name: "Incomplete", value: t.incomplete }]} height={260} /></Card>
@@ -76,7 +76,7 @@ export default async function Executive({ searchParams }: { searchParams: Promis
           <StatCard label="Avg scan → upload" value={fmtMinutes(pacs.avg_minutes)} icon={Timer} tone="sky" />
           <StatCard label="Uploaded" value={`${pacs.success}/${pacs.total}`} icon={CheckCircle2} tone="accent" />
         </div>
-        <Card title="Upload trend" className="xl:col-span-2"><Bars data={pacs.daily} x="bucket" stacked height={230} series={[{ key: "success", label: "Uploaded", color: "#179f8b" }, { key: "pending", label: "Pending", color: "#f59e0b" }, { key: "failed", label: "Failed", color: "#ef4444" }]} /></Card>
+        <Card title="Upload trend" className="xl:col-span-2"><Bars data={pacs.daily} x="bucket" stacked height={230} series={[{ key: "success", label: "Uploaded", color: "#16a34a" }, { key: "pending", label: "Pending", color: "#f59e0b" }, { key: "failed", label: "Failed", color: "#ef4444" }]} /></Card>
       </div>
 
       <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Quality & safety</h2>

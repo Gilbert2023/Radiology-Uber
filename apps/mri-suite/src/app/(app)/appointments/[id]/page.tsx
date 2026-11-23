@@ -24,6 +24,9 @@ import {
   endScanAction, scanDetailsAction, pacsStatusAction, pacsConfirmAction, rescheduleAction,
 } from "../actions";
 import { administerContrastAction } from "../../contrast/actions";
+import { getAppointmentAudit, loadLookups } from "@/server/appointmentAudit";
+import { AppointmentAuditTrail } from "@/components/AppointmentAuditTrail";
+import { ScrollText } from "lucide-react";
 
 export const metadata = { title: "Patient journey" };
 
@@ -49,6 +52,9 @@ export default async function JourneyPage({ params }: { params: Promise<{ id: st
     pacs ? q(`SELECT e.*, u.full_name FROM pacs_upload_events e LEFT JOIN users u ON u.id=e.user_id WHERE upload_id=$1 ORDER BY at, id`, [pacs.id]) : Promise.resolve([]),
     q(`SELECT owner_id, count(*)::int AS n FROM documents WHERE owner_type='IMPLANT' AND owner_id = ANY($1) GROUP BY 1`, [assessments.map((x: any) => x.implant_id)]),
   ]);
+  const canAudit = actor.permissions.has("appointments.audit") || actor.permissions.has("admin.audit");
+  const auditRows = canAudit ? await getAppointmentAudit({ appointmentId: id, limit: 500 }) : [];
+  const auditLookups = canAudit ? await loadLookups([a.patient_id]) : null;
   const docs = new Map(docCounts.map((d: any) => [d.owner_id, d.n]));
   const pp = prepProto[0];
   const age = ageFromDob(a.dob);
@@ -103,7 +109,7 @@ export default async function JourneyPage({ params }: { params: Promise<{ id: st
           return (
             <li key={s.key} className={clsx("flex items-center gap-2 rounded-lg border px-2.5 py-2",
               st === "done" && "border-green-200 bg-green-50", st === "current" && "border-accent-400 bg-accent-50 ring-1 ring-accent-300", st === "blocked" && "border-red-300 bg-red-50", st === "todo" && "border-slate-200 bg-slate-50/50")}>
-              <span className={clsx("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white", st === "done" ? "bg-green-600" : st === "current" ? "bg-accent-600" : st === "blocked" ? "bg-red-600" : "bg-slate-300")}>
+              <span className={clsx("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white", st === "done" ? "bg-green-600" : st === "current" ? "bg-accent-500" : st === "blocked" ? "bg-red-600" : "bg-slate-300")}>
                 {st === "done" ? <Check className="h-4 w-4" /> : st === "blocked" ? <Lock className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
               </span>
               <span className="min-w-0 leading-tight"><span className="block text-[10px] font-semibold uppercase text-slate-400">Stage {i + 1}</span><span className="block truncate text-xs font-semibold text-slate-800">{s.label}</span></span>
@@ -461,6 +467,11 @@ export default async function JourneyPage({ params }: { params: Promise<{ id: st
                   ))}
                 </ul>}
           </Card>
+  {canAudit && auditLookups && (
+          <Card id="audit" title={`Appointment audit trail (${auditRows.length})`} icon={ScrollText} subtitle="Saved automatically for every entry and change – cannot be edited" bodyClass="p-0" className="xl:col-span-2">
+            <AppointmentAuditTrail rows={auditRows} lookups={auditLookups} />
+          </Card>
+        )}
         </div>
 
         {/* Side column */}

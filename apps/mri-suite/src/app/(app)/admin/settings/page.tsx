@@ -22,7 +22,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <div><label className="label">Serial number</label><input name="serialNo" className="input" defaultValue={x?.serial_no ?? ""} /></div><div><label className="label">Installed on</label><input name="installedOn" type="date" className="input" defaultValue={x?.installed_on ?? ""} /></div>
       <div><label className="label">Location</label><input name="location" className="input" defaultValue={x?.location ?? ""} /></div><div><label className="label">Service provider</label><input name="serviceProvider" className="input" defaultValue={x?.service_provider ?? ""} /></div>
       <div className="sm:col-span-2"><label className="label">Installation notes</label><input name="installationNotes" className="input" defaultValue={x?.installation_notes ?? ""} /></div>
-      <div><label className="label">Calendar colour</label><input name="colour" type="color" className="input h-10" defaultValue={x?.colour ?? "#1f3f7a"} /></div>
+      <div><label className="label">Calendar colour</label><input name="colour" type="color" className="input h-10" defaultValue={x?.colour ?? "#2c3135"} /></div>
       <label className="flex items-center gap-2 self-end pb-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={x ? x.is_active : true} />Active</label><SubmitButton>Save</SubmitButton></ActionForm>);
   const ExamForm = ({ x }: { x?: any }) => (
     <ActionForm action={examTypeAction} className="grid gap-3 sm:grid-cols-2">{x && <input type="hidden" name="id" value={x.id} />}
@@ -40,9 +40,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <ActionForm action={settingsAction} className="space-y-4">
           <Card title="Scanner operating hours" subtitle="Used for routine booking limits, open-slot counts and utilisation (available hours)">
             <div className="grid gap-2">{DAYS.map((d, i) => { const v = s.operatingHours[String(i)]; return (
-              <div key={d} className="grid grid-cols-[110px_1fr_1fr_auto] items-center gap-2 text-sm"><span className="font-medium">{d}</span>
-                <input type="time" name={`open_${i}`} className="input" defaultValue={v?.open ?? "08:00"} aria-label={`${d} open`} /><input type="time" name={`close_${i}`} className="input" defaultValue={v?.close ?? "17:00"} aria-label={`${d} close`} />
+              <div key={d} className="grid grid-cols-[110px_1fr_1fr_auto_auto] items-center gap-2 text-sm"><span className="font-medium">{d}</span>
+                <input type="time" name={`open_${i}`} className="input" defaultValue={v && v.close !== "24:00" ? v.open : "08:00"} aria-label={`${d} open`} /><input type="time" name={`close_${i}`} className="input" defaultValue={v && v.close !== "24:00" ? v.close : "17:00"} aria-label={`${d} close`} />
+                <label className="flex items-center gap-1.5 text-xs font-semibold"><input type="checkbox" name={`allday_${i}`} defaultChecked={v?.open === "00:00" && v?.close === "24:00"} />Open 24 hours</label>
                 <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" name={`closed_${i}`} defaultChecked={!v} />Closed</label></div>); })}</div>
+            <p className="mt-2 text-xs text-slate-500">“Open 24 hours” overrides the times. The MRI unit is configured for 24/7 operation.</p>
           </Card>
           <Card title="Alert thresholds & behaviour"><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {num("waitAlertMinutes")}{num("waitingStatusMinutes")}{num("lateGraceMinutes")}{num("pacsPendingAlertMinutes")}{num("maintenanceDueDays")}{num("contrastExpiryDays")}{num("sessionIdleMinutes")}{num("uploadMaxMb")}

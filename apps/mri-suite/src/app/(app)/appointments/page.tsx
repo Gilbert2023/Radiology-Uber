@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { clsx } from "clsx";
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Syringe, Zap, AlertOctagon, PhoneCall, Cpu } from "lucide-react";
+import { ScrollText, CalendarDays, ChevronLeft, ChevronRight, Plus, Syringe, Zap, AlertOctagon, PhoneCall, Cpu } from "lucide-react";
 import { requireActor } from "@/server/auth";
 import { q } from "@/lib/db";
 import { APPT_SELECT, listScanners, listStaff } from "@/server/queries";
@@ -8,6 +8,7 @@ import { getSettings, availableMinutes } from "@/server/settings";
 import { PageHeader, Card, StatusPill, Badge, EmptyState } from "@/components/ui";
 import { HospitalLogo } from "@/components/brand";
 import { ActionForm, SubmitButton } from "@/components/client/forms";
+import { ScrollToAnchor } from "@/components/client/misc";
 import { DISPLAY_STATUS, BODY_REGIONS, type DisplayStatus } from "@/lib/constants";
 import { displayStatus } from "@/lib/status";
 import { localDate, addDays, startOfWeek, startOfMonth, endOfMonthExclusive, weekday, dayBounds, fmtTime, fmtLongDate, isDateStr, zonedToUtc, localTime, fmtDate } from "@/lib/time";
@@ -64,7 +65,8 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
       <PageHeader title="MRI Appointment Scheduling" icon={CalendarDays} description="Book, reschedule and track MRI examinations. Scanner conflicts and double-bookings are prevented automatically."
         crumbs={[{ label: "Patient Management" }, { label: "Appointments" }]}
         logo={<div className="hidden xl:block"><HospitalLogo size="sm" showName={false} /></div>}
-        actions={canBook && <Link href={`/appointments/new?date=${date}`} className="btn-accent"><Plus className="h-4 w-4" />New MRI appointment</Link>} />
+        actions={<>{(actor.permissions.has("appointments.audit") || actor.permissions.has("admin.audit")) && <Link href="/appointments/audit" className="btn-secondary"><ScrollText className="h-4 w-4" />Audit trail</Link>}
+          {canBook && <Link href={`/appointments/new?date=${date}`} className="btn-accent"><Plus className="h-4 w-4" />New MRI appointment</Link>}</>} />
 
       <div className="grid gap-4 xl:grid-cols-[230px_minmax(0,1fr)_280px]">
         {/* Left column: mini calendar + legend */}
@@ -248,9 +250,10 @@ function DayGrid({ date, appts, settings, group, scanners, radiographers, canBoo
   return (
     <div className="card overflow-hidden">
       {!open && <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">The department is closed on this day per configured operating hours. Only Urgent/Emergency bookings are permitted.</div>}
-      <div className="overflow-x-auto">
+      <ScrollToAnchor />
+      <div className="max-h-[76vh] overflow-auto" data-scroll-box>
         <div style={{ minWidth: 80 + cols.length * 190 }}>
-          <div className="sticky top-0 z-10 flex border-b border-slate-200 bg-slate-50/95">
+          <div className="sticky top-0 z-20 flex border-b border-slate-200 bg-slate-50">
             <div className="w-16 shrink-0" />
             {cols.map((c: any) => (
               <div key={c.id} className="min-w-[190px] flex-1 border-l border-slate-200 px-3 py-2">
@@ -261,7 +264,7 @@ function DayGrid({ date, appts, settings, group, scanners, radiographers, canBoo
           </div>
           <div className="relative flex" style={{ height }}>
             <div className="relative w-16 shrink-0">
-              {hours.map((h) => <div key={h} className="absolute right-2 -translate-y-1/2 text-[10px] font-medium tabular-nums text-slate-400" style={{ top: (h - startMin) * PX_PER_MIN }}>{String(h / 60).padStart(2, "0")}:00</div>)}
+              {hours.map((h) => <div key={h} data-scroll-anchor={nowMin === null && h === Math.max(startMin, 7 * 60) ? "" : undefined} className="absolute right-2 -translate-y-1/2 text-[10px] font-medium tabular-nums text-slate-400" style={{ top: (h - startMin) * PX_PER_MIN }}>{String(h / 60).padStart(2, "0")}:00</div>)}
             </div>
             {cols.map((c: any) => {
               const items = appts.filter(c.match);
@@ -286,7 +289,7 @@ function DayGrid({ date, appts, settings, group, scanners, radiographers, canBoo
               );
             })}
             {nowMin !== null && nowMin >= startMin && nowMin <= endMin && (
-              <div className="pointer-events-none absolute left-12 right-0 z-[5] border-t-2 border-red-500" style={{ top: (nowMin - startMin) * PX_PER_MIN }}>
+              <div data-scroll-anchor="" className="pointer-events-none absolute left-12 right-0 z-[5] border-t-2 border-red-500" style={{ top: (nowMin - startMin) * PX_PER_MIN }}>
                 <span className="absolute -left-1 -top-1.5 h-3 w-3 rounded-full bg-red-500" />
               </div>
             )}
@@ -307,9 +310,11 @@ function WeekGrid({ from, appts, settings, showNames, canBook }: { from: string;
   const minOf = (d: string, day: string) => { const [h, m] = localTime(d).split(":").map(Number); return localDate(d) !== day ? 24 * 60 : h * 60 + m; };
   const today = localDate();
   return (
-    <div className="card overflow-x-auto">
+    <div className="card overflow-hidden">
+      <ScrollToAnchor />
+      <div className="max-h-[76vh] overflow-auto" data-scroll-box>
       <div className="min-w-[900px]">
-        <div className="flex border-b border-slate-200 bg-slate-50">
+        <div className="sticky top-0 z-20 flex border-b border-slate-200 bg-slate-50">
           <div className="w-14 shrink-0" />
           {days.map((d) => (
             <Link key={d} href={`?view=day&date=${d}`} className={clsx("flex-1 border-l border-slate-200 px-2 py-2 text-center hover:bg-slate-100", d === today && "bg-accent-50")}>
@@ -321,7 +326,7 @@ function WeekGrid({ from, appts, settings, showNames, canBook }: { from: string;
         </div>
         <div className="relative flex" style={{ height: (endMin - startMin) * px }}>
           <div className="relative w-14 shrink-0">
-            {Array.from({ length: (endMin - startMin) / 60 }, (_, i) => startMin + i * 60).map((h) => <div key={h} className="absolute right-2 text-[10px] tabular-nums text-slate-400" style={{ top: (h - startMin) * px }}>{String(h / 60).padStart(2, "0")}:00</div>)}
+            {Array.from({ length: (endMin - startMin) / 60 }, (_, i) => startMin + i * 60).map((h) => <div key={h} data-scroll-anchor={h === Math.max(startMin, 7 * 60) ? "" : undefined} className="absolute right-2 text-[10px] tabular-nums text-slate-400" style={{ top: (h - startMin) * px }}>{String(h / 60).padStart(2, "0")}:00</div>)}
           </div>
           {days.map((d) => {
             const open = settings.operatingHours[String(weekday(d))];
@@ -336,6 +341,7 @@ function WeekGrid({ from, appts, settings, showNames, canBook }: { from: string;
             );
           })}
         </div>
+      </div>
       </div>
     </div>
   );
@@ -359,7 +365,7 @@ function MonthGrid({ date, appts, qs }: { date: string; appts: Row[]; qs: (o: Re
           const booked = list.filter((a) => !["CANCELLED", "NO_SHOW"].includes(a.status)).length;
           return (
             <Link key={d} href={qs({ view: "day", date: d })} className={clsx("min-h-[96px] border-b border-r border-slate-100 p-2 text-xs hover:bg-slate-50", d.slice(0, 7) !== date.slice(0, 7) && "bg-slate-50/60 text-slate-400")}>
-              <div className={clsx("mb-1 font-bold tabular-nums", d === today && "inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent-600 text-white")}>{Number(d.slice(8))}</div>
+              <div className={clsx("mb-1 font-bold tabular-nums", d === today && "inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-brand-950")}>{Number(d.slice(8))}</div>
               {booked > 0 && <div className="font-semibold text-slate-700">{booked} exam{booked === 1 ? "" : "s"}</div>}
               <div className="mt-1 flex flex-wrap gap-1">
                 {Object.entries(counts).map(([k, n]) => <span key={k} title={`${DISPLAY_STATUS[k as DisplayStatus].label}: ${n}`} className="flex items-center gap-0.5"><span className={clsx("h-2 w-2 rounded-full", DISPLAY_STATUS[k as DisplayStatus].dot)} /><span className="text-[10px]">{n}</span></span>)}

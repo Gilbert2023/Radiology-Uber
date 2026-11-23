@@ -3,13 +3,13 @@
 // workflow_events + audit_logs.
 import { z } from "zod";
 import type { PoolClient } from "pg";
-import { q, one, tx, type Db } from "@/lib/db";
+import { q, one, txAs, type Db } from "@/lib/db";
 import { SCREENING_QUESTIONS, PACS_TRANSITIONS } from "@/lib/constants";
 import { zonedToUtc, localDate, weekday, fmtTime, ageFromDob, fromLocalInput } from "@/lib/time";
 import { type Actor, assertCan, assertAny, can } from "../actor";
 import { audit } from "../audit";
 import { DomainError, NotFoundError, ForbiddenError } from "../errors";
-import { getSettings } from "../settings";
+import { getSettings, is24h } from "../settings";
 import { parse, optStr, reqStr, bool, optNum, optInt, uuid, optUuid, dateStr, optDate, timeStr, triBool } from "../validation";
 
 type Appt = Record<string, any>;
@@ -75,9 +75,9 @@ async function checkSlot(db: Db, opts: { scannerId: string; patientId: string; s
   if (!scanner || !scanner.is_active) throw new DomainError("Selected scanner is not active.");
   if (opts.priority === "ROUTINE") {
     const hours = settings.operatingHours[String(weekday(opts.date))];
-    if (!hours) throw new DomainError("The department is closed on this day. Routine bookings must fall within operating hours (Urgent/Emergency may be booked outside hours).");
-    const open = zonedToUtc(opts.date, hours.open), close = zonedToUtc(opts.date, hours.close);
-    if (opts.start < open || opts.end > close)
+    if (is24h(hours)) { /* 24-hour day: any time is within operating hours */ }
+    else if (!hours) throw new DomainError("The department is closed on this day. Routine bookings must fall within operating hours (Urgent/Emergency may be booked outside hours).");
+    else if (opts.start < zonedToUtc(opts.date, hours.open) || opts.end > zonedToUtc(opts.date, hours.close))
       throw new DomainError(`Routine bookings must be within operating hours (${hours.open}–${hours.close}).`);
   }
   const clash = await one(
@@ -105,7 +105,7 @@ function mapPgConflict(e: any): never {
 export async function createAppointment(actor: Actor, input: AppointmentInput) {
   assertCan(actor, "appointments.manage");
   const d = parse(apptSchema, input);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const patient = await one(`SELECT id FROM patients WHERE id = $1`, [d.patientId], db);
     if (!patient) throw new NotFoundError("Patient");
     const exam = await one(`SELECT * FROM exam_types WHERE id = $1 AND is_active`, [d.examTypeId], db);
@@ -133,7 +133,7 @@ export async function createAppointment(actor: Actor, input: AppointmentInput) {
 export async function updateAppointment(actor: Actor, id: string, input: AppointmentInput, reason?: string | null) {
   assertCan(actor, "appointments.manage");
   const d = parse(apptSchema, input);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const a = await lockAppt(db, id);
     if (["SCANNING", "SCANNED", "COMPLETED", "INCOMPLETE", "CANCELLED", "NO_SHOW"].includes(a.status))
       throw new DomainError(`Appointment cannot be edited in status ${a.status}.`);
@@ -174,7 +174,7 @@ export async function rescheduleAppointment(actor: Actor, id: string, input: { d
 export async function cancelAppointment(actor: Actor, id: string, reason: string) {
   assertCan(actor, "appointments.manage");
   if (!reason || reason.trim().length < 3) throw new DomainError("A cancellation reason is required.");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const a = await lockAppt(db, id);
     if (!["BOOKED", "ARRIVED", "SCREENING", "PREPARATION", "CLEARED"].includes(a.status))
       throw new DomainError(`Cannot cancel an appointment in status ${a.status}.`);
@@ -185,7 +185,7 @@ export async function cancelAppointment(actor: Actor, id: string, reason: string
 
 export async function markNoShow(actor: Actor, id: string) {
   assertAny(actor, "appointments.manage", "arrival.record");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const a = await lockAppt(db, id);
     if (a.status !== "BOOKED") throw new DomainError("Only booked (not arrived) appointments can be marked as no-show.");
     if (new Date(a.scheduled_start) > new Date()) throw new DomainError("A no-show can only be recorded after the appointment time.");
@@ -196,7 +196,7 @@ export async function markNoShow(actor: Actor, id: string) {
 
 export async function recordReminder(actor: Actor, id: string, note: string | null) {
   assertCan(actor, "appointments.reminders");
-  await tx(async (db) => {
+  await txAs(actor, async (db) => {
     const a = await lockAppt(db, id);
     if (a.status !== "BOOKED") throw new DomainError("Reminders can only be recorded for booked appointments.");
     await q(`UPDATE appointments SET reminder_at = now(), reminder_by = $2, reminder_note = $3 WHERE id = $1`, [id, actor.userId, note], db);
@@ -212,7 +212,7 @@ export async function recordArrival(actor: Actor, id: string, input: { identityV
   assertCan(actor, "arrival.record");
   const d = parse(z.object({ identityVerified: bool, identityMethod: reqStr("Identity verification method", 200), arrivedAt: optStr }), input);
   if (!d.identityVerified) throw new DomainError("Patient identity must be verified (two identifiers) before arrival can be recorded.");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const a = await lockAppt(db, id);
     if (a.status !== "BOOKED") throw new DomainError(`Arrival cannot be recorded – appointment status is ${a.status}.`);
     const arrivedAt = d.arrivedAt ? fromLocalInput(d.arrivedAt) : new Date();
@@ -251,7 +251,7 @@ export async function saveScreening(actor: Actor, apptId: string, input: z.input
     if (ans?.answer && ans.answer !== "NO" && qq.hazard && !ans.details?.trim())
       throw new DomainError(`Details are required for a "${ans.answer}" answer: ${qq.label}`);
   }
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const a = await lockAppt(db, apptId);
     if (!["ARRIVED", "SCREENING", "PREPARATION", "CLEARED"].includes(a.status))
       throw new DomainError("Screening can only be recorded after arrival and before scanning starts.");
@@ -350,7 +350,7 @@ export async function evaluateClearance(db: Db | undefined, apptId: string): Pro
 
 export async function decideScreening(actor: Actor, apptId: string, input: { decision: unknown; notes: unknown }) {
   const d = parse(z.object({ decision: z.enum(["CLEAR", "NOT_CLEARED"]), notes: optStr }), input);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const a = await lockAppt(db, apptId);
     if (!["ARRIVED", "SCREENING", "PREPARATION", "CLEARED"].includes(a.status)) throw new DomainError("Screening decisions can only be made before scanning.");
     const s = await one(`SELECT * FROM safety_screenings WHERE appointment_id = $1 FOR UPDATE`, [apptId], db);
@@ -401,7 +401,7 @@ const assessSchema = z.object({
 export async function assessImplant(actor: Actor, assessmentId: string, input: z.input<typeof assessSchema>) {
   assertCan(actor, "implants.assess");
   const d = parse(assessSchema, input);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const row = await one(
       `SELECT ia.*, pi.safety_class, pi.verification_status, pi.device_name, a.status AS appt_status, a.screening_status
          FROM implant_assessments ia JOIN patient_implants pi ON pi.id = ia.implant_id JOIN appointments a ON a.id = ia.appointment_id
@@ -468,7 +468,7 @@ const prepSchema = z.object({
 export async function savePreparation(actor: Actor, apptId: string, input: z.input<typeof prepSchema>) {
   assertCan(actor, "prep.manage");
   const d = parse(prepSchema, input);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const a = await lockAppt(db, apptId);
     if (!["ARRIVED", "SCREENING", "PREPARATION", "CLEARED"].includes(a.status))
       throw new DomainError("Preparation can only be recorded after arrival and before scanning.");
@@ -517,7 +517,7 @@ export async function savePreparation(actor: Actor, apptId: string, input: z.inp
 export async function startScan(actor: Actor, apptId: string, input: { radiographerId?: unknown; protocolId?: unknown }) {
   assertCan(actor, "scanning.perform");
   const d = parse(z.object({ radiographerId: optUuid, protocolId: optUuid }), input);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const a = await lockAppt(db, apptId);
     if (a.status !== "CLEARED") {
       if (a.screening_status !== "CLEAR") throw new DomainError("Scanning is blocked: MRI safety screening is not CLEAR.", "SAFETY_BLOCK");
@@ -555,7 +555,7 @@ export async function endScan(actor: Actor, apptId: string, input: z.input<typeo
   assertCan(actor, "scanning.perform");
   const d = parse(endScanSchema, input);
   if (d.completionStatus === "INCOMPLETE" && !d.incompleteReason) throw new DomainError("A reason is required for an incomplete examination.");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const a = await lockAppt(db, apptId);
     if (a.status !== "SCANNING") throw new DomainError("This examination is not currently being scanned.");
     const scan = await one(`UPDATE scan_records SET ended_at=now(), completion_status=$2, incomplete_reason=$3, additional_sequences=$4,
@@ -577,7 +577,7 @@ export async function endScan(actor: Actor, apptId: string, input: z.input<typeo
 export async function updateScanDetails(actor: Actor, apptId: string, input: { additionalSequences?: unknown; protocolModifications?: unknown; repeatSequences?: unknown; notes?: unknown }) {
   assertCan(actor, "scanning.perform");
   const d = parse(z.object({ additionalSequences: optStr, protocolModifications: optStr, repeatSequences: optInt, notes: optStr }), input);
-  await tx(async (db) => {
+  await txAs(actor, async (db) => {
     const r = await one(`UPDATE scan_records SET additional_sequences=$2, protocol_modifications=$3, repeat_sequences=COALESCE($4,0), notes=$5 WHERE appointment_id=$1 RETURNING id`,
       [apptId, d.additionalSequences, d.protocolModifications, d.repeatSequences, d.notes], db);
     if (!r) throw new NotFoundError("Scan record");
@@ -601,7 +601,7 @@ const pacsSchema = z.object({
 export async function updatePacsStatus(actor: Actor, uploadId: string, input: z.input<typeof pacsSchema>) {
   assertCan(actor, "pacs.manage");
   const d = parse(pacsSchema, input);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const u = await one(`SELECT * FROM pacs_uploads WHERE id=$1 FOR UPDATE`, [uploadId], db);
     if (!u) throw new NotFoundError("PACS upload record");
     if (u.status === d.status) throw new DomainError("Status is unchanged.");
@@ -642,7 +642,7 @@ export async function updatePacsStatus(actor: Actor, uploadId: string, input: z.
 /** Staff confirm (verify) a successful upload → examination COMPLETED. */
 export async function confirmPacsUpload(actor: Actor, uploadId: string, note?: string | null) {
   assertCan(actor, "pacs.verify");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const u = await one(`SELECT * FROM pacs_uploads WHERE id=$1 FOR UPDATE`, [uploadId], db);
     if (!u) throw new NotFoundError("PACS upload record");
     if (u.status !== "SUCCESSFULLY_UPLOADED") throw new DomainError("Only a successful upload can be confirmed. Record the upload as successful first.");

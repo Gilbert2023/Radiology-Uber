@@ -35,14 +35,24 @@ describe("Stage 1 – booking rules", () => {
     const b = await wf.createAppointment(rec, base(p2.id, ex.id, sc.id, day, "09:30") as any); // back-to-back is allowed
     assert.ok(b.id);
   });
-  test("routine bookings must be within operating hours; emergencies may be outside", async () => {
+  test("24/7 unit: routine bookings at any hour; restricted hours still enforced if configured", async () => {
     const rec = await actor("receptionist1");
     const sc = await testScanner("TEST hours");
     const ex = await examType("BRAIN");
     const day = nextOperatingDay();
-    await rejects(wf.createAppointment(rec, base((await newPatient()).id, ex.id, sc.id, day, "21:00") as any), /operating hours/);
-    const e = await wf.createAppointment(rec, base((await newPatient()).id, ex.id, sc.id, day, "21:00", { priority: "EMERGENCY" }) as any);
-    assert.equal(e.priority, "EMERGENCY");
+    const night = await wf.createAppointment(rec, base((await newPatient()).id, ex.id, sc.id, day, "02:00") as any);
+    assert.equal(night.priority, "ROUTINE", "routine booking at 02:00 accepted in a 24/7 unit");
+    await wf.createAppointment(rec, base((await newPatient()).id, ex.id, sc.id, day, "23:45") as any); // crosses midnight
+    const saved = (await one(`SELECT value FROM settings WHERE key='operatingHours'`)).value;
+    try {
+      const restricted = Object.fromEntries(Object.keys(saved).map((d) => [d, { open: "08:00", close: "17:00" }]));
+      await q(`UPDATE settings SET value=$1 WHERE key='operatingHours'`, [JSON.stringify(restricted)]);
+      await rejects(wf.createAppointment(rec, base((await newPatient()).id, ex.id, sc.id, day, "21:00") as any), /operating hours/);
+      const e = await wf.createAppointment(rec, base((await newPatient()).id, ex.id, sc.id, day, "21:00", { priority: "EMERGENCY" }) as any);
+      assert.equal(e.priority, "EMERGENCY");
+    } finally {
+      await q(`UPDATE settings SET value=$1 WHERE key='operatingHours'`, [JSON.stringify(saved)]);
+    }
   });
   test("reschedule records event and count; cancel requires reason; no-show only after slot time", async () => {
     const rec = await actor("receptionist1");
@@ -219,5 +229,50 @@ describe("MRI safety blocks", () => {
     await wf.saveScreening(rad, a.id, { answers: allNo(), pregnancyStatus: "NOT_APPLICABLE" } as any);
     await wf.decideScreening(rad, a.id, { decision: "CLEAR", notes: "" });
     await rejects(wf.savePreparation(nurse, a.id, { complete: "1", metalRemoved: "on", gownChanged: "on", checklist: { allergy_history: true, weight_confirmed: true } } as any), /eGFR.*IV cannulation/);
+  });
+});
+
+describe("Automatic appointment audit trail", () => {
+  test("every entry and change is saved with the user, time and field-level differences", async () => {
+    const rec = await actor("receptionist1"), rec2 = await actor("receptionist2");
+    const sc = await testScanner("TEST audit");
+    const ex = await examType("BRAIN");
+    const day = nextOperatingDay();
+    const a = await wf.createAppointment(rec, base((await newPatient()).id, ex.id, sc.id, day, "10:00") as any);
+    let rows = await q(`SELECT * FROM appointment_audit WHERE appointment_id=$1 ORDER BY id`, [a.id]);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].operation, "CREATED");
+    assert.equal(rows[0].changed_by, rec.userId);
+    assert.equal(rows[0].changed_by_name, rec.fullName);
+    assert.equal(rows[0].changed_by_role, "Receptionist");
+    assert.equal(rows[0].snapshot.accession_no, a.accession_no);
+    await wf.rescheduleAppointment(rec2, a.id, { date: day, time: "12:00", reason: "Patient request" });
+    await wf.recordReminder(rec2, a.id, "Confirmed by phone");
+    await wf.cancelAppointment(rec, a.id, "Patient request");
+    rows = await q(`SELECT * FROM appointment_audit WHERE appointment_id=$1 ORDER BY id`, [a.id]);
+    assert.equal(rows.length, 4);
+    const [, resched, reminder, cancel] = rows;
+    assert.equal(resched.changed_by, rec2.userId);
+    assert.ok(resched.changed_fields.scheduled_start, "time change recorded");
+    assert.equal(resched.changed_fields.reschedule_count.from, 0);
+    assert.equal(resched.changed_fields.reschedule_count.to, 1);
+    assert.ok(!("updated_at" in resched.changed_fields), "noise fields excluded");
+    assert.equal(reminder.changed_fields.reminder_note.to, "Confirmed by phone");
+    assert.deepEqual(cancel.changed_fields.status, { from: "BOOKED", to: "CANCELLED" });
+    assert.equal(cancel.changed_fields.cancel_reason.to, "Patient request");
+    assert.equal(cancel.changed_by, rec.userId);
+  });
+  test("changes outside the application are still captured and flagged as unattributed; trail is append-only", async () => {
+    const rec = await actor("receptionist1");
+    const a = await wf.createAppointment(rec, base((await newPatient()).id, (await examType("KNEE")).id, (await testScanner("TEST audit 2")).id, nextOperatingDay(), "14:00") as any);
+    await q(`UPDATE appointments SET notes='edited directly in SQL' WHERE id=$1`, [a.id]);
+    const r = await one(`SELECT * FROM appointment_audit WHERE appointment_id=$1 AND operation='UPDATED'`, [a.id]);
+    assert.equal(r.changed_by, null);
+    assert.match(r.source, /Direct database change/);
+    assert.equal(r.changed_fields.notes.to, "edited directly in SQL");
+    await q(`UPDATE appointments SET updated_at=now() WHERE id=$1`, [a.id]);
+    assert.equal((await one(`SELECT count(*)::int AS n FROM appointment_audit WHERE appointment_id=$1`, [a.id])).n, 2, "no-op updates are not logged");
+    await assert.rejects(q(`UPDATE appointment_audit SET changed_by_name='x' WHERE appointment_id=$1`, [a.id]), /append-only/);
+    await assert.rejects(q(`DELETE FROM appointment_audit WHERE appointment_id=$1`, [a.id]), /append-only/);
   });
 });

@@ -57,8 +57,8 @@ npm run build && npm start   # production mode on port 3000
 
 ## 5. First-time configuration checklist (production)
 1. Sign in as `admin`, change the password, create named user accounts and link them to staff records.
-2. System Settings: confirm operating hours and alert thresholds; enter the scanner serial number and installation date.
-3. Replace the logo placeholder (`public/brand/logo.png`).
+2. System Settings: operating hours default to 24/7 – confirm them and the alert thresholds; enter the scanner serial number and installation date.
+3. The official logo is already installed (`public/brand/logo.png`).
 4. MRI Supervisor: review and approve preparation protocols; enter real sequence parameters into the protocol library and approve.
 5. Configure QC acceptance thresholds only from GE documentation / approved departmental standards (each limit requires a documented source).
 6. Enter contrast agents, batches and reorder levels.

@@ -31,6 +31,7 @@ tests/                           Integration tests (node:test) + browser E2E smo
 - **Rendering:** React Server Components query PostgreSQL directly via `server/*`; there is no client-side data store. Mutations use Server Actions (CSRF-protected by Next.js origin checks) that call the same service layer used by tests.
 - **Transactions:** every state change runs in `tx()` with `SELECT … FOR UPDATE` row locks on the appointment/upload/batch being changed.
 - **Time:** all timestamps are `timestamptz` (UTC). Display, day boundaries and operating hours use the department time zone (`Africa/Accra`) via `lib/time.ts` (DST-safe conversion, so other hospitals can change zone).
+- **Operating hours:** the unit runs 24/7 (`{"open":"00:00","close":"24:00"}` every day). A 24-hour day imposes no booking-time restriction (bookings may cross midnight) and utilisation uses 24 available hours per scanner per day. Restricted hours remain configurable per weekday.
 - **Multi-scanner / multi-site:** scanners, exam types, operating hours, QC parameters and roles are data; `hospitals` exists for multi-site expansion (single active hospital today).
 
 ## 3. Data model (main entities)
@@ -53,6 +54,7 @@ Key integrity guarantees in the database itself:
 - Unique `(hospital_id, mrn)`; unique accession numbers; one screening/prep/scan/PACS record per appointment.
 - Check constraints on every status vocabulary; non-negative stock; end ≥ start for scans/downtime/leave.
 - Audit log immutability trigger.
+- **Appointment audit trail** (`appointment_audit`, migration 003): an `AFTER INSERT OR UPDATE OR DELETE` trigger on `appointments` writes one append-only row per change with the operation, a full snapshot and a `{field: {from, to}}` diff (ignoring `updated_at`; no-op updates are skipped). The acting user is attached by `txAs(actor, …)`, which sets transaction-local `app.user_id / app.user_name / app.user_role / app.source`; changes made outside the application are still captured and shown as *Unattributed* (source “Direct database change”). Existing appointments were backfilled with a CREATED entry from their booking record. Viewing requires `appointments.audit` (Supervisor and System Administrator by default); patient names are masked for roles without `patients.view`.
 
 ## 4. Patient workflow state machine
 

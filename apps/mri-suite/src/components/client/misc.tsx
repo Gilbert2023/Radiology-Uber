@@ -122,3 +122,14 @@ export function AutoSubmit({ children }: { children: React.ReactNode }) {
   }, []);
   return <span ref={ref} className="contents">{children}</span>;
 }
+
+/** Scrolls the nearest scrollable ancestor so the anchor ([data-scroll-anchor]) is near the top. */
+export function ScrollToAnchor({ offset = 60 }: { offset?: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const box = ref.current?.parentElement?.querySelector("[data-scroll-box]") as HTMLElement | null;
+    const anchor = box?.querySelector("[data-scroll-anchor]") as HTMLElement | null;
+    if (box && anchor) box.scrollTop = Math.max(0, anchor.offsetTop - offset);
+  }, [offset]);
+  return <span ref={ref} hidden />;
+}

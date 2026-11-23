@@ -4,6 +4,7 @@ import { examVolume, utilisation, waitingTimes, pacsKpis, qualitySafety, staffWo
 import { BODY_REGIONS, INCIDENT_CATEGORIES, labelize } from "@/lib/constants";
 import { fmtDate, fmtDateTime, fmtMinutes, fmtTime, minutesBetween, zonedToUtc, dayBounds, ageFromDob } from "@/lib/time";
 import type { Permission } from "@/lib/rbac";
+import { getAppointmentAudit, loadLookups, describeChanges, headline, actorLabel } from "./appointmentAudit";
 
 export interface Section { heading: string; kpis?: [string, string | number][]; table?: { columns: string[]; rows: (string | number | null)[][] }; note?: string }
 export interface Report { title: string; subtitle: string; sections: Section[]; confidential?: boolean }
@@ -11,7 +12,7 @@ export interface Report { title: string; subtitle: string; sections: Section[]; 
 const pct = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${v.toFixed(1)}%`);
 const n1 = (v: number | null | undefined) => (v === null || v === undefined ? "—" : v.toFixed(1));
 
-export const REPORTS: Record<string, { label: string; perm: Permission[]; build: (p: Period & { date?: string }) => Promise<Report> }> = {
+export const REPORTS: Record<string, { label: string; perm: Permission[]; build: (p: Period & { date?: string; sp?: Record<string, string> }) => Promise<Report> }> = {
   monthly: { label: "Departmental performance report", perm: ["analytics.view"], build: departmental },
   register: { label: "Daily examination register", perm: ["scanning.perform", "pacs.view", "analytics.view"], build: register },
   pacs: { label: "PACS upload performance report", perm: ["pacs.view"], build: pacsReport },
@@ -22,6 +23,7 @@ export const REPORTS: Record<string, { label: string; perm: Permission[]; build:
   staff: { label: "Staff operational report", perm: ["analytics.view"], build: staffReport },
   volume: { label: "Examination volume report", perm: ["analytics.view"], build: volumeReport },
   appointments: { label: "Appointment list", perm: ["appointments.view"], build: appointmentList },
+  appointment_audit: { label: "Appointment audit trail", perm: ["appointments.audit", "admin.audit"], build: appointmentAuditReport },
 };
 
 const period = (p: Period) => `${fmtDate(p.from)} – ${fmtDate(new Date(zonedToUtc(p.to).getTime() - 1))}`;
@@ -136,4 +138,15 @@ async function appointmentList(p: Period & { date?: string }): Promise<Report> {
       WHERE a.scheduled_start >= $1 AND a.scheduled_start < $2 AND a.status <> 'CANCELLED' ORDER BY a.scheduled_start`, [s, e]);
   return { title: "MRI Appointment List", subtitle: fmtDate(date), confidential: true, sections: [{ heading: `${rows.length} appointment(s)`, table: { columns: ["Time", "Accession", "Patient", "MRN", "Phone", "Examination", "Priority", "Contrast", "Status"],
     rows: rows.map((r) => [fmtTime(r.scheduled_start), r.accession_no, r.full_name, r.mrn, r.phone, r.exam, labelize(r.priority), r.contrast ? "Yes" : "", labelize(r.status)]) } }] };
+}
+
+async function appointmentAuditReport(p: Period & { sp?: Record<string, string> }): Promise<Report> {
+  const rows = await getAppointmentAudit({ from: p.from, to: p.to, user: p.sp?.user || undefined, term: p.sp?.q || undefined, limit: 20000 });
+  const mask = p.sp?.mask === "1";
+  const lk = await loadLookups(mask ? [] : [...new Set(rows.map((r) => r.patient_id).filter(Boolean))]);
+  return { title: "Appointment Audit Trail", subtitle: period(p), confidential: true, sections: [{
+    heading: `${rows.length} audit entr${rows.length === 1 ? "y" : "ies"}`, note: "Recorded automatically by database trigger on every appointment insert/update; entries are append-only.",
+    table: { columns: ["Date/time", "Accession", "Patient", "Action", "By", "Changes"],
+      rows: rows.map((r) => { const ch = describeChanges(r, lk); return [fmtDateTime(r.at), r.accession_no, r.mrn ? (mask ? r.mrn : `${r.full_name} (${r.mrn})`) : "", headline(r, ch), actorLabel(r),
+        ch.map((c) => (r.operation === "UPDATED" ? `${c.label}: ${c.from} → ${c.to}` : `${c.label}: ${c.to}`)).join("; ")]; }) } }] };
 }

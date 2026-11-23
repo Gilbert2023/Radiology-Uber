@@ -123,7 +123,7 @@ export async function setRolePermissions(actor: Actor, roleId: string, perms: st
 export async function saveSettings(actor: Actor, input: Partial<DeptSettings>) {
   assertCan(actor, "admin.settings");
   const num = (min: number, max: number) => z.coerce.number().int().min(min).max(max);
-  const hhmm = z.string().regex(/^\d{2}:\d{2}$/);
+  const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$|^24:00$/);
   const d = parse(z.object({
     waitAlertMinutes: num(5, 600), waitingStatusMinutes: num(1, 240), lateGraceMinutes: num(0, 240), pacsPendingAlertMinutes: num(5, 2880),
     maintenanceDueDays: num(1, 120), contrastExpiryDays: num(1, 365), slotMinutes: z.coerce.number().refine((n) => [5, 10, 15, 20, 30].includes(n), "5, 10, 15, 20 or 30"),
@@ -146,7 +146,7 @@ export async function saveScanner(actor: Actor, id: string | null, input: Record
     fieldStrength: z.coerce.number().positive().max(11.7), serialNo: optStr, installedOn: optStr, installationNotes: optStr, location: optStr,
     serviceProvider: optStr, colour: optStr, isActive: bool }), input);
   try {
-    const params = [d.name, d.manufacturer, d.model, d.fieldStrength, d.serialNo, d.installedOn || null, d.installationNotes, d.location, d.serviceProvider, d.colour || "#1f3f7a", d.isActive];
+    const params = [d.name, d.manufacturer, d.model, d.fieldStrength, d.serialNo, d.installedOn || null, d.installationNotes, d.location, d.serviceProvider, d.colour || "#2c3135", d.isActive];
     const r = id
       ? await one(`UPDATE scanners SET name=$2, manufacturer=$3, model=$4, field_strength_t=$5, serial_no=$6, installed_on=$7, installation_notes=$8, location=$9, service_provider=$10, colour=$11, is_active=$12 WHERE id=$1 RETURNING id`, [id, ...params])
       : await one(`INSERT INTO scanners (hospital_id, name, manufacturer, model, field_strength_t, serial_no, installed_on, installation_notes, location, service_provider, colour, is_active) VALUES ($12,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`, [...params, actor.hospitalId]);

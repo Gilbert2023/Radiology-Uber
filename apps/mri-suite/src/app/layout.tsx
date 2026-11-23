@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "MRI Suite Management System – The Bank Hospital, Ghana",
   robots: { index: false, follow: false },
 };
-export const viewport: Viewport = { themeColor: "#12264b", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#2c3135", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

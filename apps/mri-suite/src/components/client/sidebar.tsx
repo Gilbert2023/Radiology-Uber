@@ -26,7 +26,10 @@ export function Sidebar({ groups, brand }: { groups: NavGroup[]; brand: React.Re
   useEffect(() => setMobileOpen(false), [path]);
   const persist = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch {} };
   const toggleGroup = (g: string) => setClosedGroups((c) => { const n = { ...c, [g]: !c[g] }; persist("sb-groups", JSON.stringify(n)); return n; });
-  const isActive = (href: string) => path === href || path.startsWith(href + "/");
+  const matches = (href: string) => path === href || path.startsWith(href + "/");
+  // Only the most specific matching item is active (e.g. /appointments/audit vs /appointments).
+  const activeHref = groups.flatMap((g) => g.items.map((i) => i.href)).filter(matches).sort((a, b) => b.length - a.length)[0];
+  const isActive = (href: string) => href === activeHref;
 
   const nav = (
     <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-2 py-3">

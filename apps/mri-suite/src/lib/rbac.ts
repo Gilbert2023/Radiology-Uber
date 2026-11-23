@@ -11,6 +11,7 @@ export const PERMISSIONS = {
   "appointments.view": { module: "Appointments", description: "View appointment calendar and worklist" },
   "appointments.manage": { module: "Appointments", description: "Create, edit, reschedule and cancel appointments" },
   "appointments.reminders": { module: "Appointments", description: "Record appointment reminders" },
+  "appointments.audit": { module: "Appointments", description: "View the appointment audit trail", sensitive: true },
   "arrival.record": { module: "Arrival", description: "Record patient arrival and identity verification" },
   // Safety
   "screening.view": { module: "MRI Safety", description: "View MRI safety screening", sensitive: true },
@@ -115,7 +116,7 @@ export const ROLES: Record<string, { name: string; description: string; permissi
   SYSADMIN: {
     name: "System Administrator",
     description: "Technical configuration, user accounts, roles and permissions. No clinical access by default.",
-    permissions: ["admin.users", "admin.roles", "admin.settings", "admin.audit", "incidents.report"],
+    permissions: ["admin.users", "admin.roles", "admin.settings", "admin.audit", "appointments.audit", "incidents.report"],
   },
   MR_SAFETY: {
     name: "Authorised MR Safety Personnel",

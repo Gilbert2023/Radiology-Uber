@@ -15,7 +15,7 @@ export const rolePermsAction: A = async (_, fd) => runAction(async (actor) => { 
 export const settingsAction: A = async (_, fd) => runAction(async (actor) => {
   const o = formToObject(fd);
   const hours: Record<string, any> = {};
-  for (let d = 0; d < 7; d++) hours[d] = o[`open_${d}`] && o[`close_${d}`] && o[`closed_${d}`] !== "on" ? { open: o[`open_${d}`], close: o[`close_${d}`] } : null;
+  for (let d = 0; d < 7; d++) hours[d] = o[`allday_${d}`] === "on" ? { open: "00:00", close: "24:00" } : o[`open_${d}`] && o[`close_${d}`] && o[`closed_${d}`] !== "on" ? { open: o[`open_${d}`], close: o[`close_${d}`] } : null;
   const s: any = { operatingHours: hours, monitorModeDefault: o.monitorModeDefault === "on" };
   for (const k of Object.keys(DEFAULT_SETTINGS)) if (!(k in s)) s[k] = o[k];
   await adm.saveSettings(actor, s);

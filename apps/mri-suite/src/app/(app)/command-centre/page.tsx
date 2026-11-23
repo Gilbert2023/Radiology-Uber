@@ -162,9 +162,9 @@ function ScannerGlyph({ status }: { status: string }) {
   const c = { AVAILABLE: "#10b981", IN_USE: "#6366f1", MAINTENANCE: "#f59e0b", UNAVAILABLE: "#ef4444" }[status] ?? "#94a3b8";
   return (
     <svg viewBox="0 0 48 40" className="h-10 w-12" aria-hidden>
-      <rect x="2" y="2" width="44" height="30" rx="9" fill="#eef3fb" stroke="#b3c6e8" />
+      <rect x="2" y="2" width="44" height="30" rx="9" fill="#fff7e0" stroke="#e5c77a" />
       <circle cx="24" cy="17" r="9.5" fill="#fff" stroke={c} strokeWidth="3" />
-      <rect x="10" y="30" width="28" height="4" rx="2" fill="#7f9fd4" />
+      <rect x="10" y="30" width="28" height="4" rx="2" fill="#b8862b" />
       <circle cx="41" cy="8" r="3" fill={c} />
     </svg>
   );

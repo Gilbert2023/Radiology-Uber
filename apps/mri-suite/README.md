@@ -12,7 +12,7 @@ duty rostering, incident reporting, infection control, analytics and branded rep
 | | |
 |---|---|
 | Stack | Next.js 15 (App Router, React 19, TypeScript), Tailwind CSS, PostgreSQL 14+ (`pg`), Recharts, PDFKit, ExcelJS |
-| Initial scanner | GE SIGNA Creator 1.5T · time zone Africa/Accra |
+| Scanner & hours | GE SIGNA Creator 1.5T · operates 24/7 · time zone Africa/Accra |
 | Integrations | None live. PACS/HIS/SMS etc. are labelled *Not connected* / *Under development*; all workflow works with manual entry |
 
 ## Documentation
@@ -38,10 +38,17 @@ npm run dev                     # http://localhost:3000
 Demo accounts (password `Demo@MRI2026`): `supervisor`, `radiographer1`–`5`, `nurse1`–`2`,
 `receptionist1`–`2`, `mrso`, `manager`, `admin`.
 
-## Hospital logo
+## Branding
 
-The official Bank Hospital logo was not available in the repository, so a clearly labelled
-**“Logo pending”** placeholder is shown everywhere the logo appears (UI and PDF exports). Place the
-approved file at `public/brand/logo.png` (or `logo.svg`; PNG/JPG is required for PDFs) and it is
-used automatically. Brand colours are defined in `tailwind.config.ts` (`brand`, `accent`) and
-should be aligned with the official logo specification.
+The official Bank Hospital logo is installed at `public/brand/logo.png` (also the browser icon) and
+appears in the sidebar, login screen, module headers and every PDF export. The colour scheme is
+taken from the logo: charcoal `#2C3135` (lettering) as the base and amber `#FDA900` (ring) as the
+accent; the logo red `#ED0000` is reserved so it never competes with clinical alert colours.
+Tokens are in `tailwind.config.ts`.
+
+## Appointment audit trail
+
+Every appointment that is entered or changed is saved automatically to an append-only audit trail
+by a database trigger: who did it (user and role), when, and each field's before/after value.
+View it on each appointment page and under **Patient Management → Appointment Audit Trail**
+(filter by date, user, accession/MRN; export to Excel/PDF).

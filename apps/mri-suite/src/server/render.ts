@@ -4,7 +4,7 @@ import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
 import type { Report } from "./reports";
 
-const NAVY = "#12264b", TEAL = "#179f8b", GREY = "#64748b";
+const NAVY = "#2c3135", TEAL = "#df8500", GREY = "#64748b";
 function logoFile(): string | null {
   for (const f of ["logo.png", "logo.jpg"]) { const p = path.join(process.cwd(), "public", "brand", f); if (fs.existsSync(p)) return p; }
   return null;
@@ -19,7 +19,7 @@ export async function renderPdf(r: Report, meta: { generatedBy: string; generate
   const header = () => {
     const logo = logoFile();
     if (logo) doc.image(logo, 40, 30, { fit: [46, 46] });
-    else { doc.save().dash(2, { space: 2 }).strokeColor("#7f9fd4").rect(40, 30, 46, 46).stroke().undash().restore(); doc.fontSize(6).fillColor("#4d74b8").text("LOGO\nPENDING", 40, 46, { width: 46, align: "center" }); }
+    else { doc.save().dash(2, { space: 2 }).strokeColor("#b8862b").rect(40, 30, 46, 46).stroke().undash().restore(); doc.fontSize(6).fillColor("#8c6d2b").text("LOGO\nPENDING", 40, 46, { width: 46, align: "center" }); }
     doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(14).text(meta.hospital, 96, 32);
     doc.fillColor(TEAL).font("Helvetica").fontSize(9).text(`${meta.department} · MRI Suite Management System`, 96, 50);
     doc.moveTo(40, 84).lineTo(40 + W, 84).lineWidth(2).strokeColor(TEAL).stroke();
@@ -41,7 +41,7 @@ export async function renderPdf(r: Report, meta: { generatedBy: string; generate
       s.kpis.forEach(([k, v], i) => {
         if (i % cols === 0) { ensure(34); }
         const x = 40 + (i % cols) * cw, y = doc.y;
-        doc.roundedRect(x + 2, y, cw - 4, 30, 3).fillColor("#eef3fb").fill();
+        doc.roundedRect(x + 2, y, cw - 4, 30, 3).fillColor("#fff7e0").fill();
         doc.fillColor(GREY).font("Helvetica").fontSize(6.5).text(k.toUpperCase(), x + 7, y + 4, { width: cw - 14, lineBreak: false, ellipsis: true });
         doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(11).text(String(v ?? "—"), x + 7, y + 14, { width: cw - 14, lineBreak: false });
         doc.y = (i % cols === cols - 1 || i === s.kpis!.length - 1) ? y + 34 : y;
@@ -61,7 +61,7 @@ export async function renderPdf(r: Report, meta: { generatedBy: string; generate
         if (doc.y + h > doc.page.height - 60) { doc.addPage(); header(); drawHead(); }
         const y = doc.y;
         if (ri % 2) doc.rect(40, y, W, h).fillColor("#f8fafc").fill();
-        row.forEach((c, i) => doc.fillColor("#0f1b33").font("Helvetica").fontSize(fs).text(String(c ?? "—"), 42 + i * cw, y + 2, { width: cw - 4 }));
+        row.forEach((c, i) => doc.fillColor("#1f2326").font("Helvetica").fontSize(fs).text(String(c ?? "—"), 42 + i * cw, y + 2, { width: cw - 4 }));
         doc.y = y + h;
       });
       doc.moveDown(0.8);
@@ -82,8 +82,8 @@ export async function renderXlsx(r: Report, meta: { generatedBy: string; generat
   wb.creator = meta.hospital; wb.created = new Date();
   const sheetName = (h: string, i: number) => `${i + 1} ${h}`.replace(/[\\/?*[\]:]/g, "").slice(0, 31);
   const summary = wb.addWorksheet("Summary");
-  summary.addRow([meta.hospital]).font = { bold: true, size: 14, color: { argb: "FF12264B" } };
-  summary.addRow([`${meta.department} · MRI Suite Management System`]).font = { color: { argb: "FF179F8B" } };
+  summary.addRow([meta.hospital]).font = { bold: true, size: 14, color: { argb: "FF2C3135" } };
+  summary.addRow([`${meta.department} · MRI Suite Management System`]).font = { color: { argb: "FFB05A02" } };
   summary.addRow([r.title]).font = { bold: true, size: 12 };
   summary.addRow([r.subtitle]);
   summary.addRow([`Generated ${meta.generatedAt} by ${meta.generatedBy}${r.confidential ? " · CONFIDENTIAL" : ""}`]).font = { italic: true, color: { argb: "FF64748B" } };
@@ -91,19 +91,19 @@ export async function renderXlsx(r: Report, meta: { generatedBy: string; generat
   summary.getColumn(1).width = 46; summary.getColumn(2).width = 22;
   r.sections.forEach((s, i) => {
     if (s.kpis?.length) {
-      summary.addRow([s.heading]).font = { bold: true, color: { argb: "FF12264B" } };
+      summary.addRow([s.heading]).font = { bold: true, color: { argb: "FF2C3135" } };
       for (const [k, v] of s.kpis) summary.addRow([k, v]);
       if (s.note) summary.addRow([s.note]).font = { italic: true, size: 9 };
       summary.addRow([]);
     }
     if (s.table) {
       const ws = wb.addWorksheet(sheetName(s.heading, i));
-      ws.addRow([`${meta.hospital} – ${r.title}`]).font = { bold: true, color: { argb: "FF12264B" } };
+      ws.addRow([`${meta.hospital} – ${r.title}`]).font = { bold: true, color: { argb: "FF2C3135" } };
       ws.addRow([`${s.heading} · ${r.subtitle}`]);
       if (s.note) ws.addRow([s.note]).font = { italic: true, size: 9 };
       ws.addRow([]);
       const head = ws.addRow(s.table.columns);
-      head.eachCell((c) => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF12264B" } }; });
+      head.eachCell((c) => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2C3135" } }; });
       for (const row of s.table.rows) ws.addRow(row.map((c) => (c === null || c === undefined ? "" : c)));
       s.table.columns.forEach((c, ci) => { ws.getColumn(ci + 1).width = Math.min(40, Math.max(12, c.length + 4, ...s.table!.rows.slice(0, 200).map((r) => String(r[ci] ?? "").length + 2))); });
       ws.views = [{ state: "frozen", ySplit: head.number }];

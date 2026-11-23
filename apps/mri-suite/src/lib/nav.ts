@@ -1,6 +1,6 @@
 import type { Permission } from "./rbac";
 
-export interface NavItem { label: string; href: string; icon: string; any: Permission[] }
+export interface NavItem { label: string; href: string; icon: string; any: Permission[]; noHome?: boolean }
 export interface NavGroup { label: string; items: NavItem[] }
 
 export const NAV: NavGroup[] = [
@@ -10,6 +10,7 @@ export const NAV: NavGroup[] = [
   ] },
   { label: "Patient Management", items: [
     { label: "MRI Appointment Scheduling", href: "/appointments", icon: "CalendarDays", any: ["appointments.view"] },
+    { label: "Appointment Audit Trail", href: "/appointments/audit", icon: "ScrollText", any: ["appointments.audit", "admin.audit"], noHome: true },
     { label: "Patient Registration", href: "/patients", icon: "UserPlus", any: ["patients.view"] },
     { label: "Patient Worklist", href: "/worklist", icon: "ClipboardList", any: ["appointments.view"] },
     { label: "Patient Arrival & Tracking", href: "/arrivals", icon: "DoorOpen", any: ["arrival.record"] },
@@ -51,6 +52,6 @@ export function visibleNav(perms: Set<string>): NavGroup[] {
 }
 export function homeFor(perms: Set<string>): string {
   // Incident reporting is available to everyone, so it is only a landing page of last resort.
-  for (const g of NAV) for (const i of g.items) if (i.any.some((p) => p !== "incidents.report" && perms.has(p))) return i.href;
+  for (const g of NAV) for (const i of g.items) if (!i.noHome && i.any.some((p) => p !== "incidents.report" && perms.has(p))) return i.href;
   return perms.has("incidents.report") ? "/incidents" : "/account/password";
 }

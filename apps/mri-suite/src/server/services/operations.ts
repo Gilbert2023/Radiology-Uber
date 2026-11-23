@@ -1,6 +1,6 @@
 // Departmental operations: contrast media, QC, maintenance, staff & duty, incidents, cleaning.
 import { z } from "zod";
-import { q, one, tx, type Db } from "@/lib/db";
+import { q, one, txAs, type Db } from "@/lib/db";
 import { fromLocalInput, localDate } from "@/lib/time";
 import { type Actor, assertCan, assertAny, can } from "../actor";
 import { audit } from "../audit";
@@ -18,7 +18,7 @@ export async function receiveContrast(actor: Actor, input: Record<string, unknow
   const d = parse(z.object({ agentId: uuid, batchNo: reqStr("Batch number", 60), expiryDate: dateStr, quantity: z.coerce.number().positive("Quantity must be positive"),
     supplier: optStr, receivedOn: optDate }), input);
   if (d.expiryDate <= localDate()) throw new DomainError("Cannot receive stock that has already expired.");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const b = await one(`INSERT INTO contrast_batches (agent_id, batch_no, expiry_date, quantity_received, current_stock, supplier, received_on, received_by)
                          VALUES ($1,$2,$3,$4,$4,$5,COALESCE($6,current_date),$7) ON CONFLICT (agent_id, batch_no) DO NOTHING RETURNING id`,
       [d.agentId, d.batchNo, d.expiryDate, d.quantity, d.supplier, d.receivedOn, actor.userId], db);
@@ -31,7 +31,7 @@ export async function receiveContrast(actor: Actor, input: Record<string, unknow
 export async function adjustContrast(actor: Actor, input: Record<string, unknown>) {
   assertCan(actor, "contrast.inventory");
   const d = parse(z.object({ batchId: uuid, type: z.enum(["ADJUSTMENT", "DISPOSAL"]), quantity: z.coerce.number().refine((n) => n !== 0, "Quantity cannot be zero"), reason: reqStr("Reason", 500) }), input);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const b = await one(`SELECT * FROM contrast_batches WHERE id=$1 FOR UPDATE`, [d.batchId], db);
     if (!b) throw new NotFoundError("Batch");
     const delta = d.type === "DISPOSAL" ? -Math.abs(d.quantity) : d.quantity;
@@ -57,7 +57,7 @@ export async function administerContrast(actor: Actor, input: z.input<typeof adm
   notFuture(at, "Administration time");
   if (d.adverseReaction && (!d.reactionSeverity || !d.reactionDetails)) throw new DomainError("Record the reaction severity and details.");
   if (d.extravasation && !d.extravasationDetails) throw new DomainError("Record extravasation details.");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const a = await one(`SELECT * FROM appointments WHERE id=$1`, [d.appointmentId], db);
     if (!a) throw new NotFoundError("Appointment");
     if (!["ARRIVED", "SCREENING", "PREPARATION", "CLEARED", "SCANNING", "SCANNED"].includes(a.status)) throw new DomainError("Contrast can only be recorded for an active examination.");
@@ -112,7 +112,7 @@ export async function recordQcSession(actor: Actor, input: Record<string, any>) 
     manualResults: z.record(z.string(), z.preprocess((v) => (v === "" || v === undefined ? null : v), z.enum(["PASS", "FAIL"]).nullable())).default({}) }), input);
   const at = d.performedAt ?? new Date();
   notFuture(at, "QC time");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const params = await q(`SELECT * FROM qc_parameters WHERE scanner_id=$1 AND frequency=$2 AND is_active ORDER BY sort_order, name`, [d.scannerId, d.frequency], db);
     if (!params.length) throw new DomainError("No QC parameters are configured for this scanner and frequency.");
     const results = params.map((p) => {
@@ -174,7 +174,7 @@ export async function setScannerStatus(actor: Actor, scannerId: string, status: 
     await q(`UPDATE scanners SET status=$2, status_note=$3 WHERE id=$1`, [scannerId, status, note], c);
     await audit(c, actor, "scanner.status", "scanner", scannerId, { from: s.status, to: status, note });
   };
-  return db ? run(db) : tx(run);
+  return db ? run(db) : txAs(actor, run);
 }
 
 const maintSchema = z.object({
@@ -192,7 +192,7 @@ export async function logMaintenance(actor: Actor, input: z.input<typeof maintSc
   if (d.status === "CLOSED" && ["BREAKDOWN", "REPAIR"].includes(d.eventType)) throw new DomainError("Breakdowns are closed via return-to-service authorisation.");
   const reportedAt = d.reportedAt ?? new Date();
   notFuture(reportedAt, "Reported time");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const takeOffline = d.takeOffline || d.eventType === "BREAKDOWN";
     const row = await one(
       `INSERT INTO maintenance_events (scanner_id, schedule_id, event_type, reported_at, fault_description, engineer_name, engineer_company, engineer_contact,
@@ -218,7 +218,7 @@ export async function updateMaintenance(actor: Actor, id: string, input: Record<
   assertCan(actor, "maintenance.manage");
   const d = parse(z.object({ status: z.enum(["OPEN", "IN_PROGRESS", "AWAITING_RTS", "CLOSED"]), workDone: optStr, partsReplaced: optStr, engineerName: optStr,
     engineerCompany: optStr, engineerContact: optStr, downtimeEnd: optDateTime }), input);
-  await tx(async (db) => {
+  await txAs(actor, async (db) => {
     const e = await one(`SELECT * FROM maintenance_events WHERE id=$1 FOR UPDATE`, [id], db);
     if (!e) throw new NotFoundError("Maintenance event");
     if (e.status === "CLOSED") throw new DomainError("This event is closed.");
@@ -239,7 +239,7 @@ export async function updateMaintenance(actor: Actor, id: string, input: Record<
 export async function returnToService(actor: Actor, id: string, notes: string | null) {
   assertCan(actor, "maintenance.rts");
   if (!notes || notes.length < 5) throw new DomainError("Record the return-to-service checks performed (e.g. post-repair QC result).");
-  await tx(async (db) => {
+  await txAs(actor, async (db) => {
     const e = await one(`SELECT * FROM maintenance_events WHERE id=$1 FOR UPDATE`, [id], db);
     if (!e) throw new NotFoundError("Maintenance event");
     if (e.status === "CLOSED") throw new DomainError("Already closed.");
@@ -316,7 +316,7 @@ export async function requestLeave(actor: Actor, input: Record<string, unknown>)
 export async function decideLeave(actor: Actor, id: string, decision: string) {
   assertCan(actor, "leave.approve");
   if (!["APPROVED", "DECLINED", "CANCELLED"].includes(decision)) throw new DomainError("Invalid decision.");
-  await tx(async (db) => {
+  await txAs(actor, async (db) => {
     const l = await one(`UPDATE leave_records SET status=$2, decided_by=$3, decided_at=now() WHERE id=$1 RETURNING *`, [id, decision, actor.userId], db);
     if (!l) throw new NotFoundError("Leave record");
     let removed = 0;
@@ -331,7 +331,7 @@ export async function decideLeave(actor: Actor, id: string, decision: string) {
 export async function assignDuty(actor: Actor, input: Record<string, unknown>) {
   assertCan(actor, "roster.manage");
   const d = parse(z.object({ staffId: uuid, dutyDate: dateStr, shift: z.enum(["MORNING", "AFTERNOON", "NIGHT", "ON_CALL"]), scannerId: optUuid, roleNote: optStr }), input);
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const st = await one(`SELECT employment_status FROM staff WHERE id=$1`, [d.staffId], db);
     if (!st) throw new NotFoundError("Staff");
     if (["LEFT", "SUSPENDED"].includes(st.employment_status)) throw new DomainError("This staff member is not available for duty.");
@@ -387,7 +387,7 @@ export async function reportIncident(actor: Actor, input: Record<string, unknown
     severity: z.enum(["NO_HARM", "LOW", "MODERATE", "SEVERE", "CRITICAL"]), location: optStr, description: reqStr("Description", 5000), immediateAction: optStr,
     personsInvolved: optStr, patientMrn: optStr }), input);
   notFuture(d.occurredAt, "Incident time");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     let patientId: string | null = null;
     if (d.patientMrn) {
       const p = await one(`SELECT id FROM patients WHERE mrn=$1`, [d.patientMrn], db);
@@ -404,7 +404,7 @@ export async function updateIncident(actor: Actor, id: string, input: Record<str
     investigation: optStr, correctiveAction: optStr, preventiveAction: optStr, responsibleOfficer: optStr, closureNotes: optStr }), input);
   if (d.status === "CLOSED" && (!d.investigation || !d.correctiveAction || !d.closureNotes))
     throw new DomainError("Closing requires investigation findings, corrective action and closure notes.");
-  await tx(async (db) => {
+  await txAs(actor, async (db) => {
     const cur = await one(`SELECT status FROM incidents WHERE id=$1 FOR UPDATE`, [id], db);
     if (!cur) throw new NotFoundError("Incident");
     await q(`UPDATE incidents SET status=$2, severity=$3, investigation=$4, corrective_action=$5, preventive_action=$6, responsible_officer=$7, closure_notes=$8,
@@ -420,7 +420,7 @@ export async function recordCleaning(actor: Actor, input: Record<string, any>) {
   const d = parse(z.object({ areaId: uuid, cleanedAt: optDateTime, staffId: optUuid, items: z.array(z.string()).default([]), notes: optStr }), input);
   const at = d.cleanedAt ?? new Date();
   notFuture(at, "Cleaning time");
-  return tx(async (db) => {
+  return txAs(actor, async (db) => {
     const area = await one(`SELECT * FROM cleaning_areas WHERE id=$1 AND is_active`, [d.areaId], db);
     if (!area) throw new NotFoundError("Cleaning area");
     const checklist: Record<string, boolean> = {};

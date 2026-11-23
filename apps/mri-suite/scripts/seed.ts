@@ -33,19 +33,21 @@ export async function seed({ referenceOnly = false, quiet = false, today = local
   const log = (...a: unknown[]) => { if (!quiet) console.log(...a); };
   try {
     await db.query("BEGIN");
+    // Attribute every seeded appointment change in the automatic audit trail.
+    await db.query(`SELECT set_config('app.user_name', 'Synthetic demo data seed', true), set_config('app.source', 'Demo data seed script', true)`);
     const existing = await db.query(`SELECT count(*)::int AS n FROM hospitals`);
     if (existing.rows[0].n > 0) throw new Error("Database already seeded. Use `npm run db:reset` to rebuild from scratch.");
 
     // ---------------- Reference data ----------------
     const hospital = await ins(db, "hospitals", { code: "TBH", name: "The Bank Hospital", department: "Radiology Department – MRI Unit", country: "Ghana", timezone: "Africa/Accra", currency: "GHS", address: "Cantonments, Accra, Ghana" });
     for (const [code, p] of Object.entries(PERMISSIONS))
-      await db.query(`INSERT INTO permissions (code, module, description, is_sensitive) VALUES ($1,$2,$3,$4)`, [code, p.module, p.description, !!(p as any).sensitive]);
+      await db.query(`INSERT INTO permissions (code, module, description, is_sensitive) VALUES ($1,$2,$3,$4) ON CONFLICT (code) DO NOTHING`, [code, p.module, p.description, !!(p as any).sensitive]);
     const roleIds: Record<string, string> = {};
     for (const [code, r] of Object.entries(ROLES)) {
       roleIds[code] = (await ins(db, "roles", { code, name: r.name, description: r.description })).id;
       for (const p of r.permissions) await db.query(`INSERT INTO role_permissions VALUES ($1,$2)`, [roleIds[code], p]);
     }
-    for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) await db.query(`INSERT INTO settings (key, value) VALUES ($1,$2)`, [k, JSON.stringify(v)]);
+    for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) await db.query(`INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`, [k, JSON.stringify(v)]);
 
     const integrations = [
       ["PACS_DICOM", "PACS (DICOM C-STORE / C-FIND)", "Automatic confirmation of study arrival in PACS. Until connected, uploads are confirmed manually by staff.", "UNDER_DEVELOPMENT"],
@@ -62,7 +64,7 @@ export async function seed({ referenceOnly = false, quiet = false, today = local
     for (const [code, name, description, status] of integrations) await ins(db, "integrations", { code, name, description, status }, "code");
 
     const scanner = await ins(db, "scanners", { hospital_id: hospital.id, name: "MRI 1 – SIGNA Creator", manufacturer: "GE HealthCare", model: "SIGNA Creator", field_strength_t: 1.5,
-      location: "Radiology Department, MRI Suite", service_provider: "GE HealthCare (service contract – details to be confirmed)", installation_notes: "Serial number and installation date to be entered by the department.", colour: "#1f3f7a" });
+      location: "Radiology Department, MRI Suite", service_provider: "GE HealthCare (service contract – details to be confirmed)", installation_notes: "Serial number and installation date to be entered by the department.", colour: "#2c3135" });
 
     // Preparation protocols (generic templates; status DRAFT until the department reviews and approves them).
     const prepDefs: Record<string, any> = {
@@ -294,7 +296,9 @@ export async function seed({ referenceOnly = false, quiet = false, today = local
 
     const busyUntil: Record<string, number> = {};
     const scheduledDays: string[] = [];
-    for (let d = addDays(today, -90); d <= addDays(today, 14); d = addDays(d, 1)) if (settings.operatingHours[String(weekday(d))]) scheduledDays.push(d);
+    for (let d = addDays(today, -90); d <= addDays(today, 14); d = addDays(d, 1)) scheduledDays.push(d);
+    // The unit is open 24/7; demo elective lists run in daytime, plus occasional overnight emergencies.
+    const demoList = (d: string) => (weekday(d) === 0 ? { open: "09:00", close: "15:00" } : weekday(d) === 6 ? { open: "08:00", close: "16:00" } : { open: "07:30", close: "19:30" });
 
     let patientCursor = 0;
     const nextPatient = () => patients[(patientCursor++ * 7) % 200]; // implant patients (200+) are used deliberately below
@@ -485,7 +489,7 @@ export async function seed({ referenceOnly = false, quiet = false, today = local
     anchor = Math.max(anchor, zonedToUtc(today).getTime() + 210 * 60000);
     const liveFrom = new Date(anchor - 215 * 60000), liveTo = new Date(anchor + 215 * 60000);
     for (const day of scheduledDays) {
-      const hours = settings.operatingHours[String(weekday(day))]!;
+      const hours = demoList(day);
       const [oh, om] = hours.open.split(":").map(Number);
       const [ch, cm] = hours.close.split(":").map(Number);
       let t = oh * 60 + om + 15;
@@ -507,6 +511,14 @@ export async function seed({ referenceOnly = false, quiet = false, today = local
         } else if (isFuture) outcome = chance(0.03) ? "CANCELLED" : "BOOKED";
         else outcome = chance(0.05) ? "NO_SHOW" : chance(0.05) ? "CANCELLED" : chance(0.03) ? "INCOMPLETE" : "COMPLETED";
         await makeAppt(day, start, exam, nextPatient(), outcome);
+      }
+      // 24/7 unit: occasional overnight emergency examinations (past nights only).
+      if (!isFuture && chance(0.45)) {
+        const start = zonedToUtc(day, pick(["21:30", "23:00", "01:30", "03:00"]));
+        const ex = pick(exams.filter((e) => e.region === "BRAIN" || e.region === "SPINE"));
+        const free = !(addMin(start, ex.dur) > liveFrom && start < liveTo);
+        if (free && start.getTime() + ex.dur * 60000 < nowMs - 3 * 3600000)
+          await makeAppt(day, start, ex, nextPatient(), chance(0.08) ? "INCOMPLETE" : "COMPLETED", { priority: "EMERGENCY", note: "Overnight emergency (demo)" });
       }
     }
 
@@ -574,18 +586,20 @@ export async function seed({ referenceOnly = false, quiet = false, today = local
       downtime_start: zonedToUtc(addDays(today, -80), "18:00"), downtime_end: zonedToUtc(addDays(today, -80), "22:00"), work_done: "Quarterly PM completed (demo).", status: "CLOSED", created_by: users.supervisor, is_demo: true });
 
     // Staff roster & attendance (past 30 days, next 14), training, competencies, leave
+    let lastNight: string | null = null;
     for (let d = addDays(today, -30); d <= addDays(today, 14); d = addDays(d, 1)) {
-      if (!settings.operatingHours[String(weekday(d))]) continue;
-      const order2 = [...radiographers.slice(0, 5)].sort(() => rnd() - 0.5);
-      const assigned: [string, string][] = [[order2[0], "MORNING"], [order2[1], "MORNING"], [order2[2], "AFTERNOON"], [order2[3], "AFTERNOON"], [order2[4], "ON_CALL"], [pick(nurses), "MORNING"], [staff["TBH-MRI-009"], "MORNING"], [staff["TBH-MRI-010"], "AFTERNOON"]];
+      // 24/7 cover: 2 morning, 1 afternoon, 1 night radiographer + on-call; last night's staff never work this morning.
+      const order2 = [...radiographers.slice(0, 5)].sort(() => rnd() - 0.5).sort((a, b) => Number(a === lastNight) - Number(b === lastNight));
+      const assigned: [string, string][] = [[order2[0], "MORNING"], [order2[1], "MORNING"], [order2[2], "AFTERNOON"], [order2[3], "NIGHT"], [order2[4], "ON_CALL"], [pick(nurses), "MORNING"], [staff["TBH-MRI-009"], "MORNING"], [staff["TBH-MRI-010"], "AFTERNOON"]];
+      lastNight = order2[3];
       if (weekday(d) !== 6) assigned.push([staff["TBH-MRI-001"], "MORNING"]);
       for (const [sid, shift] of assigned) {
         await db.query(`INSERT INTO duty_roster (staff_id, duty_date, shift, scanner_id, created_by) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, [sid, d, shift, ["MORNING", "AFTERNOON"].includes(shift) ? scanner.id : null, users.supervisor]);
         if (d < today && shift !== "ON_CALL") {
           const st = chance(0.9) ? "PRESENT" : chance(0.6) ? "LATE" : "ABSENT";
-          const ci = st === "ABSENT" ? null : zonedToUtc(d, shift === "MORNING" ? (st === "LATE" ? "07:55" : "07:25") : (st === "LATE" ? "14:20" : "13:55"));
+          const ci = st === "ABSENT" ? null : zonedToUtc(d, shift === "MORNING" ? (st === "LATE" ? "07:55" : "07:25") : shift === "NIGHT" ? (st === "LATE" ? "20:20" : "19:55") : (st === "LATE" ? "14:20" : "13:55"));
           await db.query(`INSERT INTO attendance_records (staff_id, work_date, status, clock_in, clock_out, recorded_by) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,
-            [sid, d, st, ci, ci ? addMin(ci, 6.5 * 60) : null, users.supervisor]);
+            [sid, d, st, ci, ci ? addMin(ci, (shift === "NIGHT" ? 11.5 : 6.5) * 60) : null, users.supervisor]);
         }
       }
     }

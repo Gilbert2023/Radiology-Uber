@@ -48,16 +48,18 @@ patients so it never collides with seeded bookings.
 | DB exclusion constraint prevents overlapping bookings outside the app | operations |
 | Upload validation by content, permission on upload | operations |
 | Integrations cannot be marked connected manually; protocol approval needs parameters; educational references cannot be approved | operations |
+| Appointment audit trail: CREATED entry with user/role, reschedule/reminder/cancel field diffs, noise fields excluded, direct-SQL change captured as unattributed, no-op updates skipped, append-only | workflow – audit trail |
+| 24/7 booking at any hour and across midnight; restricted hours still enforced when configured | workflow – booking |
 | Analytics vs raw SQL: exam volume, PACS success rate & average time, utilisation formula & available hours, screening compliance | operations |
 | E2E: login redirect, generic login error, unauthenticated API 401, landing page per role (7 roles), access-denied pages, hidden navigation, admin has no patient access, API permission, UI-driven screening + clearance, PDF & Excel export (content verified), export permission, sign-out, no horizontal scroll on phone and tablet for 4 key pages | tests/e2e/smoke.mjs |
 | Page crawl: all 66 routes render without server or browser console errors (supervisor + admin) | manual crawl script during development |
 
-## Latest results (22–23 Nov 2026)
+## Latest results (23 Nov 2026)
 
 - `npm run typecheck` – pass
-- `npm test` – **27/27 pass** (10 workflow, 17 operations/security/analytics)
+- `npm test` – **29/29 pass** (12 workflow incl. automatic audit trail & 24/7 booking, 17 operations/security/analytics)
 - `next build` – pass
-- `npm run test:e2e` – **28/28 checks pass**
+- `npm run test:e2e` – **32/32 checks pass** (incl. audit-trail access, logo display, audit export)
 - Route crawl – all routes 200 with no console errors (supervisor lacks user/role administration by design)
 
 Defects found and fixed by testing: omitted optional enum fields failed validation; button
