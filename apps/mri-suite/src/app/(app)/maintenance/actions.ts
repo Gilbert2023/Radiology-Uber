@@ -1,0 +1,11 @@
+"use server";
+import { runAction, type ActionResult } from "@/server/action";
+import { formToObject } from "@/server/validation";
+import * as ops from "@/server/services/operations";
+type A = (p: ActionResult | null, fd: FormData) => Promise<ActionResult>;
+const P = ["/maintenance", "/command-centre", "/appointments"];
+export const logMaintenanceAction: A = async (_, fd) => runAction(async (actor) => { await ops.logMaintenance(actor, formToObject(fd) as any); return "Maintenance event logged."; }, P);
+export const updateMaintenanceAction: A = async (_, fd) => runAction(async (actor) => { const o = formToObject(fd); await ops.updateMaintenance(actor, o.id, o); return "Maintenance event updated."; }, P);
+export const rtsAction: A = async (_, fd) => runAction(async (actor) => { await ops.returnToService(actor, String(fd.get("id")), (fd.get("notes") as string) || null); return "Return to service authorised – scanner available."; }, P);
+export const scheduleAction: A = async (_, fd) => runAction(async (actor) => { await ops.saveSchedule(actor, formToObject(fd)); return "Maintenance schedule added."; }, P);
+export const scannerStatusAction: A = async (_, fd) => runAction(async (actor) => { await ops.setScannerStatus(actor, String(fd.get("scannerId")), String(fd.get("status")), (fd.get("note") as string) || null); return "Scanner status updated."; }, P);

@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: mri
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: mri_suite
+    volumes: [dbdata:/var/lib/postgresql/data]
+    restart: unless-stopped
+  app:
+    build: .
+    depends_on: [db]
+    environment:
+      DATABASE_URL: postgres://mri:${POSTGRES_PASSWORD}@db:5432/mri_suite
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      UPLOAD_DIR: /data/uploads
+    volumes: [uploads:/data/uploads]
+    ports: ["127.0.0.1:3000:3000"]
+    restart: unless-stopped
+volumes:
+  dbdata:
+  uploads:

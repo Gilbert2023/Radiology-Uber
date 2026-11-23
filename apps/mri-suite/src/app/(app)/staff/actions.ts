@@ -1,0 +1,14 @@
+"use server";
+import { runAction, type ActionResult } from "@/server/action";
+import { formToObject } from "@/server/validation";
+import * as ops from "@/server/services/operations";
+type A = (p: ActionResult | null, fd: FormData) => Promise<ActionResult>;
+const P = "/staff";
+export const saveStaffAction: A = async (_, fd) => runAction(async (actor) => { const o = formToObject(fd); await ops.saveStaff(actor, o.id || null, o as any); return "Staff record saved."; }, P);
+export const competencyAction: A = async (_, fd) => runAction(async (actor) => { await ops.addCompetency(actor, formToObject(fd)); return "Competency saved."; }, P);
+export const trainingAction: A = async (_, fd) => runAction(async (actor) => { await ops.addTraining(actor, formToObject(fd)); return "Training recorded."; }, P);
+export const leaveAction: A = async (_, fd) => runAction(async (actor) => { await ops.requestLeave(actor, formToObject(fd)); return "Leave request recorded."; }, P);
+export const leaveDecisionAction: A = async (_, fd) => runAction(async (actor) => { await ops.decideLeave(actor, String(fd.get("id")), String(fd.get("decision"))); return "Leave updated."; }, P);
+export const dutyAction: A = async (_, fd) => runAction(async (actor) => { await ops.assignDuty(actor, formToObject(fd)); return "Shift assigned."; }, P);
+export const removeDutyAction: A = async (_, fd) => runAction(async (actor) => { await ops.removeDuty(actor, String(fd.get("id"))); return "Shift removed."; }, P);
+export const attendanceAction: A = async (_, fd) => runAction(async (actor) => { await ops.recordAttendance(actor, formToObject(fd)); return "Attendance recorded."; }, P);
