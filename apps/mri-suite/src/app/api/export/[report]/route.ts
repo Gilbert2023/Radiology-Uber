@@ -9,6 +9,7 @@ import { resolvePeriod } from "@/components/PeriodFilter";
 import { fmtDateTime, isDateStr, localDate } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // large PDF/Excel reports
 export async function GET(req: NextRequest, { params }: { params: Promise<{ report: string }> }) {
   const a = await getActor();
   if (!a) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });

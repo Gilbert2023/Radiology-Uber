@@ -127,7 +127,7 @@ export async function saveSettings(actor: Actor, input: Partial<DeptSettings>) {
   const d = parse(z.object({
     waitAlertMinutes: num(5, 600), waitingStatusMinutes: num(1, 240), lateGraceMinutes: num(0, 240), pacsPendingAlertMinutes: num(5, 2880),
     maintenanceDueDays: num(1, 120), contrastExpiryDays: num(1, 365), slotMinutes: z.coerce.number().refine((n) => [5, 10, 15, 20, 30].includes(n), "5, 10, 15, 20 or 30"),
-    monitorModeDefault: z.boolean(), sessionIdleMinutes: num(5, 240), uploadMaxMb: num(1, 25),
+    monitorModeDefault: z.boolean(), sessionIdleMinutes: num(5, 240), uploadMaxMb: num(1, 4),
     operatingHours: z.record(z.string(), z.object({ open: hhmm, close: hhmm }).refine((h) => h.close > h.open, "Close must be after open").nullable()),
   }), input);
   await tx(async (db) => {

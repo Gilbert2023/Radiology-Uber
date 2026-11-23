@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { one } from "@/lib/db";
 import { type Actor, assertAny } from "../actor";
@@ -7,7 +5,7 @@ import { audit } from "../audit";
 import { DomainError } from "../errors";
 import { getSettings } from "../settings";
 
-export const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || "./storage/uploads");
+import { putObject } from "../storage";
 const TYPES: Record<string, { ext: string; magic: (b: Buffer) => boolean }> = {
   "application/pdf": { ext: "pdf", magic: (b) => b.subarray(0, 5).toString() === "%PDF-" },
   "image/png": { ext: "png", magic: (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
@@ -30,8 +28,7 @@ export async function storeDocument(actor: Actor, ownerType: string, ownerId: st
   const t = TYPES[file.type];
   if (!t || !t.magic(buf)) throw new DomainError("Only PDF, PNG or JPEG files are accepted (file content did not match an allowed type).");
   const stored = `${randomUUID()}.${t.ext}`;
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
-  await fs.writeFile(path.join(UPLOAD_DIR, stored), buf, { mode: 0o600 });
+  await putObject(stored, buf, file.type);
   const safeName = file.name.replace(/[^\w.\- ()]/g, "_").slice(0, 150);
   const row = await one(`INSERT INTO documents (owner_type, owner_id, doc_type, title, original_name, stored_name, mime_type, size_bytes, sha256, uploaded_by)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`, [ownerType, ownerId, docType, title, safeName, stored, file.type, buf.length, createHash("sha256").update(buf).digest("hex"), actor.userId]);

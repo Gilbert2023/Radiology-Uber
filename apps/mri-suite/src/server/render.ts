@@ -6,6 +6,7 @@ import type { Report } from "./reports";
 
 const NAVY = "#2c3135", TEAL = "#df8500", GREY = "#64748b";
 function logoFile(): string | null {
+  // public/brand is bundled into the export function via outputFileTracingIncludes (next.config.mjs)
   for (const f of ["logo.png", "logo.jpg"]) { const p = path.join(process.cwd(), "public", "brand", f); if (fs.existsSync(p)) return p; }
   return null;
 }

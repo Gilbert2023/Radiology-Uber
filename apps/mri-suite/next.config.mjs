@@ -11,7 +11,11 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ["pdfkit", "exceljs", "pg", "bcryptjs"],
-  experimental: { serverActions: { bodySizeLimit: "12mb" } },
+  // Files read from disk at runtime must be bundled into the serverless functions on Vercel.
+  outputFileTracingIncludes: {
+    "/api/export/[report]": ["./node_modules/pdfkit/js/data/**/*", "./public/brand/**/*"],
+  },
+  experimental: { serverActions: { bodySizeLimit: "4.5mb" } }, // Vercel request body limit is 4.5 MB
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

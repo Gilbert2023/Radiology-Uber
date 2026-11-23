@@ -1,10 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { getActor } from "@/server/auth";
 import { one } from "@/lib/db";
 import { audit } from "@/server/audit";
-import { UPLOAD_DIR } from "@/server/services/documents";
+import { getObject } from "@/server/storage";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const a = await getActor();
@@ -18,7 +16,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     await audit(undefined, a, "document.access_denied", "document", id);
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const buf = await fs.readFile(path.join(UPLOAD_DIR, path.basename(d.stored_name)));
+  const buf = await getObject(d.stored_name);
   await audit(undefined, a, "document.download", "document", id);
   return new NextResponse(new Uint8Array(buf), { headers: { "Content-Type": d.mime_type, "Content-Disposition": `inline; filename="${d.original_name.replace(/"/g, "")}"`, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
 }

@@ -27,7 +27,7 @@ export const DEFAULT_SETTINGS: DeptSettings = {
   slotMinutes: 15,
   monitorModeDefault: false,
   sessionIdleMinutes: 30,
-  uploadMaxMb: 10,
+  uploadMaxMb: 4, // Vercel limits request bodies to 4.5 MB
 };
 
 export const SETTING_DESCRIPTIONS: Record<keyof DeptSettings, string> = {

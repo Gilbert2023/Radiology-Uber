@@ -11,11 +11,35 @@ declare global {
   var __mriPool: Pool | undefined;
 }
 
+/**
+ * TLS for hosted PostgreSQL (e.g. Supabase):
+ *  - DATABASE_CA_CERT set  -> encrypted AND server certificate verified against that CA (recommended)
+ *  - DATABASE_SSL=require  -> encrypted, certificate not verified
+ *  - otherwise             -> no TLS (local development only)
+ */
+function sslConfig() {
+  const ca = process.env.DATABASE_CA_CERT?.replace(/\\n/g, "\n");
+  if (ca) return { ca, rejectUnauthorized: true };
+  if (process.env.DATABASE_SSL === "require") return { rejectUnauthorized: false };
+  return undefined;
+}
+/** TLS is configured via sslConfig(); remove sslmode from the URL so it cannot override it. */
+function stripSslMode(url: string) {
+  return url.replace(/([?&])sslmode=[^&]*&?/, "$1").replace(/[?&]$/, "");
+}
+
 export function getPool(): Pool {
   if (!global.__mriPool) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) throw new Error("DATABASE_URL is not configured");
-    global.__mriPool = new Pool({ connectionString, max: 10, idleTimeoutMillis: 30_000 });
+    global.__mriPool = new Pool({
+      connectionString: stripSslMode(connectionString),
+      ssl: sslConfig(),
+      // Serverless (Vercel) runs many small instances: keep each pool small and use the Supabase pooler.
+      max: Number(process.env.DATABASE_POOL_MAX || 10),
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+    });
   }
   return global.__mriPool;
 }

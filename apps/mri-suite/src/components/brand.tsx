@@ -1,11 +1,11 @@
-import fs from "node:fs";
-import path from "node:path";
 import { clsx } from "clsx";
 
 /** Returns the public URL of the official logo if it has been supplied, otherwise null. */
 export function logoUrl(): string | null {
-  for (const f of ["logo.svg", "logo.png", "logo.jpg"]) if (fs.existsSync(path.join(process.cwd(), "public", "brand", f))) return `/brand/${f}`;
-  return null;
+  // The official logo is committed at public/brand/logo.png. Public files are served by the CDN and are
+  // not present in serverless function filesystems, so only fall back to the placeholder if explicitly disabled.
+  if (process.env.HOSPITAL_LOGO_URL === "none") return null;
+  return process.env.HOSPITAL_LOGO_URL || "/brand/logo.png";
 }
 
 /**

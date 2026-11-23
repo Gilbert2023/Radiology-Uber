@@ -2,7 +2,7 @@
   "name": "mri-suite",
   "version": "1.0.0",
   "private": true,
-  "description": "The Bank Hospital – MRI Suite Management System",
+  "description": "The Bank Hospital \u2013 MRI Suite Management System",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
@@ -12,7 +12,9 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:reset": "tsx scripts/migrate.ts --reset && tsx scripts/seed.ts",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
-    "test:e2e": "node tests/e2e/smoke.mjs"
+    "test:e2e": "node tests/e2e/smoke.mjs",
+    "setup:storage": "tsx scripts/setup-storage.ts",
+    "setup:production": "tsx scripts/migrate.ts && tsx scripts/seed.ts --reference-only && tsx scripts/setup-storage.ts"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",
@@ -39,5 +41,8 @@
     "tailwindcss": "3.4.17",
     "tsx": "4.20.5",
     "typescript": "5.9.2"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

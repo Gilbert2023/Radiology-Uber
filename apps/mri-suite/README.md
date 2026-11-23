@@ -19,6 +19,7 @@ duty rostering, incident reporting, infection control, analytics and branded rep
 
 | Document | Contents |
 |---|---|
+| **[docs/LAUNCH_GUIDE.md](docs/LAUNCH_GUIDE.md)** | **Go-live on GitHub + Supabase + Vercel, backups and the 10-year maintenance plan** |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Prerequisites, environment variables, database setup, migrations, seeding, running locally |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment (Docker or Node), HTTPS, backups, disaster recovery, hardening checklist |
 | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | Role-by-role guide to every module |

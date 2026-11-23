@@ -57,7 +57,7 @@ patients so it never collides with seeded bookings.
 ## Latest results (23 Nov 2026)
 
 - `npm run typecheck` – pass
-- `npm test` – **29/29 pass** (12 workflow incl. automatic audit trail & 24/7 booking, 17 operations/security/analytics)
+- `npm test` – **32/32 pass** (12 workflow, 17 operations/security/analytics, 3 deployment: Supabase Storage adapter against a mock API, production-reset guard, row-level-security lockdown)
 - `next build` – pass
 - `npm run test:e2e` – **32/32 checks pass** (incl. audit-trail access, logo display, audit export)
 - Route crawl – all routes 200 with no console errors (supervisor lacks user/role administration by design)

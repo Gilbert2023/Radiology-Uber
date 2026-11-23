@@ -1,5 +1,7 @@
 # Deployment
 
+> Using GitHub + Supabase + Vercel? Follow **[LAUNCH_GUIDE.md](LAUNCH_GUIDE.md)**. This page covers self-hosting (Docker / VM).
+
 ## Recommended architecture
 
 ```
