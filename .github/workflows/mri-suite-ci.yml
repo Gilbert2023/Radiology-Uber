@@ -2,14 +2,16 @@
 # Vercel only deploys code; this workflow proves it still works before it reaches the hospital.
 name: MRI Suite CI
 
+# Runs on every pull request (no path filter) so it can be a required check on `main`:
+# a required check that never runs would block unrelated pull requests forever.
 on:
   push:
-    paths: ["apps/mri-suite/**", ".github/workflows/mri-suite-ci.yml"]
+    branches: [main]
   pull_request:
-    paths: ["apps/mri-suite/**", ".github/workflows/mri-suite-ci.yml"]
 
 jobs:
   test:
+    name: MRI Suite tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
