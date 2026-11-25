@@ -88,7 +88,7 @@ export function Sidebar({ groups, brand }: { groups: NavGroup[]; brand: React.Re
         {nav}
         {!collapsed && (
           <div className="border-t border-white/10 px-4 py-3 text-[10px] leading-snug text-brand-300">
-            GE SIGNA Creator 1.5T · Africa/Accra<br />Contains synthetic demonstration data
+            GE SIGNA Creator 1.5T · Open 24/7 · Africa/Accra
           </div>
         )}
       </aside>
