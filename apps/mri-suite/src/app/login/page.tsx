@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getActor } from "@/server/auth";
+import { one } from "@/lib/db";
 import { homeFor } from "@/lib/nav";
 import { HospitalLogo } from "@/components/brand";
 import { LoginForm } from "./LoginForm";
@@ -9,6 +10,8 @@ export const metadata = { title: "Sign in" };
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const sp = await searchParams;
   const a = await getActor();
+  // Only advertise demo accounts when the synthetic demo data set is actually loaded.
+  const demo = !!(await one(`SELECT 1 FROM staff WHERE is_demo LIMIT 1`).catch(() => null));
   if (a) redirect(homeFor(a.permissions));
   const msg = sp.timeout ? "You were signed out after a period of inactivity." : sp.expired ? "Your session expired. Please sign in again." : sp.reset ? "Password updated – please sign in." : null;
   return (
@@ -40,10 +43,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <p className="mt-1 text-sm text-slate-500">Authorised staff only. All activity is audited.</p>
           {msg && <p className="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">{msg}</p>}
           <LoginForm />
-          <div className="mt-6 rounded-lg border border-dashed border-fuchsia-300 bg-fuchsia-50/50 p-3 text-xs text-fuchsia-900">
+          {demo && <div className="mt-6 rounded-lg border border-dashed border-fuchsia-300 bg-fuchsia-50/50 p-3 text-xs text-fuchsia-900">
             <div className="font-semibold">Demonstration environment</div>
             Usernames: supervisor, radiographer1, nurse1, receptionist1, mrso, manager, admin · Password: <code>Demo@MRI2026</code>. All patient data is synthetic.
-          </div>
+          </div>}
           <p className="mt-4 text-xs text-slate-500">Forgotten password? Contact the System Administrator, who can issue a one-time reset link.</p>
         </div>
       </section>

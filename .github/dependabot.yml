@@ -1,5 +1,7 @@
 # Monthly dependency-update pull requests (security fixes arrive as soon as published).
 # Each update is tested by the MRI Suite CI workflow before anyone merges it.
+# Major versions (e.g. Next.js 15 -> 16, Tailwind 3 -> 4) change how the code must be written,
+# so they are NOT proposed automatically; plan them as a deliberate upgrade (see docs/LAUNCH_GUIDE.md §7).
 version: 2
 updates:
   - package-ecosystem: npm
@@ -7,6 +9,9 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
